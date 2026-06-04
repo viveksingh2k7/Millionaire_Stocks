@@ -10,6 +10,7 @@ Schedule: Runs at 09:35 ET on every market trading day (via GitHub Actions).
 import os
 import sys
 import time
+import json
 import logging
 from datetime import datetime, date
 
@@ -357,6 +358,64 @@ def print_summary(results: list[dict]):
         out_path = f"logs/signals_{date.today()}.csv"
         df_out.to_csv(out_path, index=False)
         log.info(f"📁 Signal report saved: {out_path}")
+
+    # ── Publish JSON for GitHub Pages dashboard ───────────────────
+    _publish_json(results)
+
+
+# ─────────────────────────────────────────────
+# GitHub Pages JSON Publisher
+# ─────────────────────────────────────────────
+def _publish_json(results: list[dict]):
+    """Write docs/signals.json consumed by the GitHub Pages dashboard."""
+    os.makedirs("docs", exist_ok=True)
+
+    signals = []
+    for r in results:
+        if r["signal"] not in ("BUY", "SELL"):
+            continue
+        d = r.get("details", {})
+        buy_conds  = d.get("buy_conditions", {})
+        sell_conds = d.get("sell_conditions", {})
+        signals.append({
+            "ticker":     r["ticker"],
+            "signal":     r["signal"],
+            "close":      d.get("close", 0),
+            "rsi":        d.get("rsi", 0),
+            "macd_diff":  d.get("macd_diff", 0),
+            "sma_50":     d.get("sma_50", 0),
+            "sma_200":    d.get("sma_200", 0),
+            "bb_upper":   d.get("bb_upper", 0),
+            "bb_lower":   d.get("bb_lower", 0),
+            "atr_pct":    d.get("atr_pct", 0),
+            "buy_score":  d.get("buy_score", 0),
+            "buy_triggers":  [k for k, v in buy_conds.items()  if v],
+            "sell_triggers": [k for k, v in sell_conds.items() if v],
+        })
+
+    buys   = [r for r in results if r["signal"] == "BUY"]
+    sells  = [r for r in results if r["signal"] == "SELL"]
+    holds  = [r for r in results if r["signal"] == "HOLD"]
+    errors = [r for r in results if r["signal"] == "ERROR"]
+
+    payload = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "scan_date":    str(date.today()),
+        "dry_run":      Config.DRY_RUN,
+        "summary": {
+            "total":  len(results),
+            "buy":    len(buys),
+            "sell":   len(sells),
+            "hold":   len(holds),
+            "errors": len(errors),
+        },
+        "signals": sorted(signals, key=lambda x: (x["signal"], -x["buy_score"])),
+    }
+
+    out_path = "docs/signals.json"
+    with open(out_path, "w") as f:
+        json.dump(payload, f, indent=2)
+    log.info(f"🌐 GitHub Pages data published: {out_path}")
 
 
 # ─────────────────────────────────────────────
