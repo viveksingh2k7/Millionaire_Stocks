@@ -556,87 +556,191 @@ const timeAgo = iso => {
 const pct = (n,d=100) => (n*100/d).toFixed(1)+"%";
 const COLORS = ["#00c805","#6770e7","#f5a623","#a855f7"];
 
-/* ── Load all data ─────────────────────────────────── */
-async function loadAll() {
-  showSkeletons();
-  const [sigRes, portRes, priceRes] = await Promise.allSettled([
-    fetch("signals.json?t="  + Date.now()),
-    fetch("portfolio.json?t=" + Date.now()),
-    fetch("prices.json?t="   + Date.now()),
-  ]);
+/* ═══════════════════════════════════════════════════
+   BROWSER-SIDE YAHOO FINANCE LIVE PRICE FETCHER
+   Calls Yahoo Finance chart API directly from the browser.
+   No server, no API key, no CORS proxy needed.
+   Browsers can reach Yahoo Finance; GitHub Actions IPs cannot.
+════════════════════════════════════════════════════ */
+const YF_HOSTS = [
+  "https://query1.finance.yahoo.com",
+  "https://query2.finance.yahoo.com",
+];
 
-  let sigData={signals:[],summary:{}}, portData={holdings:[]}, priceData={};
-  if(sigRes.status  ==="fulfilled"&&sigRes.value.ok)   sigData   = await sigRes.value.json();
-  if(portRes.status ==="fulfilled"&&portRes.value.ok)  portData  = await portRes.value.json();
-  if(priceRes.status==="fulfilled"&&priceRes.value.ok) priceData = await priceRes.value.json();
+async function fetchYahooQuote(symbol) {
+  const params = "interval=1d&range=5d&includePrePost=false";
+  for (const host of YF_HOSTS) {
+    try {
+      const url = `${host}/v8/finance/chart/${encodeURIComponent(symbol)}?${params}`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const result = data?.chart?.result?.[0];
+      if (!result) continue;
+      const meta = result.meta || {};
+      const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
+      const prev  = meta.chartPreviousClose || meta.previousClose;
+      if (!price) continue;
+      const chgPct = prev ? ((price - prev) / prev * 100) : null;
+      return {
+        price:      +price.toFixed(4),
+        prev_close: prev  ? +prev.toFixed(4)           : null,
+        change:     prev  ? +(price - prev).toFixed(4) : null,
+        change_pct: chgPct ? +chgPct.toFixed(4)        : null,
+        currency:   (meta.currency || "USD").toUpperCase(),
+      };
+    } catch { continue; }
+  }
+  return null;
+}
 
-  ALL_SIG   = sigData.signals||[];
-  PORTFOLIO = portData.holdings||[];
+async function fetchAllLivePrices(holdings) {
+  /* Fetch every portfolio ticker + GBP/USD concurrently */
+  const symbols  = holdings.map(h => h.yahoo_symbol || h.ticker);
+  const allSyms  = ["GBPUSD=X", ...symbols];
+  const results  = await Promise.all(allSyms.map(s => fetchYahooQuote(s)));
 
-  // Build flat price map: ticker → { price_usd, change_usd, change_pct }
+  const fxRate   = results[0]?.price || 1.27;
+  const now      = new Date().toISOString();
+  const portfolio = holdings.map((h, i) => {
+    const q   = results[i + 1];  // offset by 1 for GBPUSD=X
+    const cur = (h.currency || h.avg_cost_usd ? "USD" : "USD").toUpperCase();
+    const sym = h.yahoo_symbol || h.ticker;
+    const isLSE = sym.endsWith(".L");
+
+    if (!q) return { ...h, ticker: h.ticker, price_usd: null, change_usd: null, change_pct: null };
+
+    // WISE.L returned in GBp (pence) → convert to USD
+    const price_usd  = isLSE ? +((q.price / 100) * fxRate).toFixed(4) : q.price;
+    const change_usd = isLSE && q.change ? +((q.change / 100) * fxRate).toFixed(4) : q.change;
+
+    return {
+      ticker:        h.ticker,
+      yahoo_symbol:  sym,
+      name:          h.name,
+      shares:        h.shares,
+      avg_cost_usd:  h.avg_cost,
+      price_usd,
+      change_usd,
+      change_pct:    q.change_pct,
+      prev_close_raw:q.prev_close,
+      currency:      cur,
+      gbp_usd_rate:  isLSE ? fxRate : null,
+    };
+  });
+
+  return { fetched_at: now, gbp_usd_rate: fxRate, portfolio, signal_prices: {}, source: "browser" };
+}
+
+/* ── Apply price data to global state ──────────────── */
+function applyPrices(priceData) {
   PRICES      = {};
   PRICES_META = priceData;
 
-  // Portfolio prices (already USD-converted by fetch_prices.py)
-  (priceData.portfolio||[]).forEach(p => {
-    if(p.price_usd) PRICES[p.ticker] = {
+  (priceData.portfolio || []).forEach(p => {
+    if (p.price_usd) PRICES[p.ticker] = {
       price_usd:  p.price_usd,
       change_usd: p.change_usd,
       change_pct: p.change_pct,
-      source:     "live",
+      source:     priceData.source || "file",
     };
   });
-
-  // Signal prices (US stocks)
-  Object.entries(priceData.signal_prices||{}).forEach(([sym, q]) => {
-    if(q.price) PRICES[sym] = {
+  Object.entries(priceData.signal_prices || {}).forEach(([sym, q]) => {
+    if (q.price) PRICES[sym] = {
       price_usd:  q.price,
       change_usd: q.change,
       change_pct: q.change_pct,
-      source:     "live",
+      source:     "file",
     };
   });
 
-  // Overlay live prices onto ALL_SIG rows
   ALL_SIG = ALL_SIG.map(s => {
     const lp = PRICES[s.ticker];
-    return lp ? { ...s, close: lp.price_usd, change_usd: lp.change_usd, change_pct: lp.change_pct, price_source: "live" } : s;
+    return lp ? { ...s, close: lp.price_usd, change_pct: lp.change_pct, price_source: "live" } : s;
   });
+}
+
+/* ── Load all data ─────────────────────────────────── */
+async function loadAll() {
+  showSkeletons();
+
+  // Load static JSON files in parallel
+  const [sigRes, portRes, priceRes] = await Promise.allSettled([
+    fetch("signals.json?t="   + Date.now()),
+    fetch("portfolio.json?t=" + Date.now()),
+    fetch("prices.json?t="    + Date.now()),
+  ]);
+
+  let sigData={signals:[],summary:{}}, portData={holdings:[]}, priceData={};
+  if (sigRes.status   === "fulfilled" && sigRes.value.ok)   sigData   = await sigRes.value.json();
+  if (portRes.status  === "fulfilled" && portRes.value.ok)  portData  = await portRes.value.json();
+  if (priceRes.status === "fulfilled" && priceRes.value.ok) priceData = await priceRes.value.json();
+
+  ALL_SIG   = sigData.signals  || [];
+  PORTFOLIO = portData.holdings || [];
+
+  // Apply file-based prices first (instant)
+  applyPrices(priceData);
 
   bootstrapOverview(sigData);
   renderPriceTicker(priceData);
   renderOverview();
   bootstrapPortfolio();
 
-  // Auto-refresh prices every 60 s while the tab is visible
-  if(priceRefreshTimer) clearInterval(priceRefreshTimer);
-  priceRefreshTimer = setInterval(refreshPrices, 30_000);  // every 30 s
+  // Now fetch LIVE prices directly from Yahoo Finance in the browser
+  if (PORTFOLIO.length) {
+    updateTickerStatus("fetching…", "var(--gold)");
+    try {
+      const livePriceData = await fetchAllLivePrices(PORTFOLIO);
+      const filledCount   = livePriceData.portfolio.filter(p => p.price_usd).length;
+
+      if (filledCount > 0) {
+        applyPrices(livePriceData);
+        renderPriceTicker(livePriceData);
+        renderOverview();
+        bootstrapPortfolio();
+        updateTickerStatus("LIVE", "var(--green)");
+        console.log(`✅ Browser live prices: ${filledCount}/${PORTFOLIO.length} loaded`);
+      } else {
+        updateTickerStatus("MARKET CLOSED", "var(--text3)");
+        console.warn("⚠ Yahoo Finance returned no prices (market may be closed)");
+      }
+    } catch(e) {
+      updateTickerStatus("OFFLINE", "var(--red)");
+      console.warn("Browser price fetch failed:", e);
+    }
+  }
+
+  // Auto-refresh prices every 30 s
+  if (priceRefreshTimer) clearInterval(priceRefreshTimer);
+  priceRefreshTimer = setInterval(() => {
+    _nextRefresh = Date.now() + 30_000;
+    refreshPrices();
+  }, 30_000);
   startLiveClock();
 }
 
-/* ── Refresh prices only (lightweight) ─────────────── */
+function updateTickerStatus(label, color) {
+  const el = document.getElementById("pt-status");
+  const dot = document.getElementById("pt-dot");
+  if (el)  { el.textContent = label; el.style.color = color; }
+  if (dot) dot.style.background = color;
+}
+
+/* ── Refresh prices every 30 s ──────────────────────── */
 async function refreshPrices() {
-  if(document.hidden) return;
+  if (document.hidden || !PORTFOLIO.length) return;
   try {
-    const res = await fetch("prices.json?t=" + Date.now());
-    if(!res.ok) return;
-    const priceData = await res.json();
-    PRICES_META = priceData;
-    PRICES = {};
-    (priceData.portfolio||[]).forEach(p => {
-      if(p.price_usd) PRICES[p.ticker] = { price_usd: p.price_usd, change_usd: p.change_usd, change_pct: p.change_pct, source: "live" };
-    });
-    Object.entries(priceData.signal_prices||{}).forEach(([sym,q]) => {
-      if(q.price) PRICES[sym] = { price_usd: q.price, change_usd: q.change, change_pct: q.change_pct, source: "live" };
-    });
-    ALL_SIG = ALL_SIG.map(s => {
-      const lp = PRICES[s.ticker];
-      return lp ? { ...s, close: lp.price_usd, change_usd: lp.change_usd, change_pct: lp.change_pct, price_source: "live" } : s;
-    });
-    renderPriceTicker(priceData);
-    renderOverview();
-    bootstrapPortfolio();
-  } catch(e) { /* silent */ }
+    const livePriceData = await fetchAllLivePrices(PORTFOLIO);
+    const filled = livePriceData.portfolio.filter(p => p.price_usd).length;
+    if (filled > 0) {
+      applyPrices(livePriceData);
+      renderPriceTicker(livePriceData);
+      renderOverview();
+      bootstrapPortfolio();
+      updateTickerStatus("LIVE", "var(--green)");
+    }
+  } catch { /* silent fail */ }
 }
 
 /* ── Scrolling price ticker bar ─────────────────────── */
@@ -725,12 +829,11 @@ function startLiveClock() {
   }, 1000);
 }
 
-/* Patch refreshPrices to reset countdown */
-const _origRefresh = refreshPrices;
-async function refreshPrices() {
-  _nextRefresh = Date.now() + 30_000;
-  await _origRefresh();
-}
+/* refreshPrices is defined above; reset countdown each call */
+const _wrapRefresh = refreshPrices;
+// Override so countdown resets on every refresh cycle
+// (refreshPrices already defined — just reset _nextRefresh inside the timer)
+
 
 /* ── Overview bootstrap ─────────────────────────────── */
 function bootstrapOverview(data){

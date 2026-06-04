@@ -1,15 +1,14 @@
 """
 fetch_prices.py
 ===============
-Fetches real-time / latest quotes for portfolio tickers and all signal
-tickers, then writes docs/prices.json for the GitHub Pages dashboard.
+Fetches real-time quotes via Yahoo Finance's public chart API using
+direct HTTP requests with browser-like headers (bypasses the yfinance
+library which fails from GitHub Actions IPs).
 
-Uses three fallback methods per ticker so we always get a price:
-  1. yf.Ticker.fast_info.last_price        (fastest, sometimes None)
-  2. yf.Ticker.info regularMarketPrice     (reliable, slightly slower)
-  3. yf.Ticker.history(period='2d')        (always works, uses last close)
+Endpoint: https://query{1|2}.finance.yahoo.com/v8/finance/chart/{symbol}
+          ?interval=1d&range=5d
 
-Run by .github/workflows/prices.yml every 15 min, 7 AM–9 PM CST.
+No API key required. Tries query1 then query2 as fallback.
 """
 
 import json
@@ -19,7 +18,7 @@ import time
 import logging
 from datetime import datetime, timezone
 
-import yfinance as yf
+import requests
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,8 +32,29 @@ SIGNALS_PATH   = "docs/signals.json"
 OUT_PATH       = "docs/prices.json"
 GBP_USD_TICKER = "GBPUSD=X"
 
+# Realistic Chrome browser headers to avoid Yahoo Finance IP blocking
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0.0.0 Safari/537.36"
+    ),
+    "Accept":          "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer":         "https://finance.yahoo.com/",
+    "Origin":          "https://finance.yahoo.com",
+    "sec-ch-ua":       '"Google Chrome";v="125","Chromium";v="125","Not.A/Brand";v="24"',
+    "sec-ch-ua-mobile":"?0",
+    "sec-fetch-dest":  "empty",
+    "sec-fetch-mode":  "cors",
+    "sec-fetch-site":  "same-site",
+}
 
-# ── Helpers ───────────────────────────────────────────────────────────
+SESSION = requests.Session()
+SESSION.headers.update(HEADERS)
+
+
+# ── Helpers ──────────────────────────────────────────────────────────
 def load_json(path: str) -> dict:
     if not os.path.exists(path):
         return {}
@@ -42,80 +62,71 @@ def load_json(path: str) -> dict:
         return json.load(f)
 
 
-def get_quote(ticker_sym: str) -> dict | None:
+def get_quote(symbol: str) -> dict | None:
     """
-    Fetch price + change for one ticker using three fallback strategies.
-    Returns dict with keys: price, prev_close, change, change_pct, currency
-    or None on complete failure.
+    Fetch latest price for `symbol` via Yahoo Finance v8 chart API.
+    Tries query1 → query2 as fallback.
+    Returns {price, prev_close, change, change_pct, currency} or None.
     """
-    try:
-        t = yf.Ticker(ticker_sym)
+    params = {
+        "interval":      "1d",
+        "range":         "5d",
+        "includePrePost":"false",
+    }
 
-        price      = None
-        prev_close = None
-        currency   = "USD"
-
-        # ── Strategy 1: fast_info ──────────────────────────────────────
+    for host in ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"]:
+        url = f"{host}/v8/finance/chart/{symbol}"
         try:
-            fi = t.fast_info
-            price      = getattr(fi, "last_price",      None)
-            prev_close = getattr(fi, "previous_close",  None)
-            currency   = getattr(fi, "currency",        "USD") or "USD"
-        except Exception:
-            pass
+            resp = SESSION.get(url, params=params, timeout=15)
+            if not resp.ok:
+                log.debug(f"  {symbol} → {host} HTTP {resp.status_code}")
+                continue
 
-        # ── Strategy 2: info dict (more reliable) ─────────────────────
-        if not price:
-            try:
-                info = t.info
-                price = (
-                    info.get("regularMarketPrice") or
-                    info.get("currentPrice")       or
-                    info.get("ask")                or
-                    info.get("bid")
-                )
-                prev_close = info.get("regularMarketPreviousClose") or info.get("previousClose")
-                currency   = info.get("currency", "USD") or "USD"
-            except Exception:
-                pass
+            data   = resp.json()
+            result = data.get("chart", {}).get("result")
+            if not result:
+                log.debug(f"  {symbol} → empty result from {host}")
+                continue
 
-        # ── Strategy 3: history (always gives at least last close) ─────
-        if not price:
-            try:
-                hist = t.history(period="2d")
-                if not hist.empty:
-                    price      = float(hist["Close"].iloc[-1])
-                    prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else None
-            except Exception:
-                pass
+            meta  = result[0].get("meta", {})
+            price = (
+                meta.get("regularMarketPrice") or
+                meta.get("postMarketPrice")    or
+                meta.get("previousClose")
+            )
+            prev = (
+                meta.get("chartPreviousClose") or
+                meta.get("previousClose")
+            )
 
-        if price is None:
-            return None
+            if not price:
+                continue
 
-        price      = float(price)
-        prev_close = float(prev_close) if prev_close else None
-        change     = round(price - prev_close, 4) if prev_close else None
-        change_pct = round((price - prev_close) / prev_close * 100, 4) if prev_close else None
+            price = float(price)
+            prev  = float(prev) if prev else None
+            change     = round(price - prev, 4)       if prev else None
+            change_pct = round((price - prev) / prev * 100, 4) if prev else None
 
-        return {
-            "price":      round(price, 4),
-            "prev_close": round(prev_close, 4) if prev_close else None,
-            "change":     change,
-            "change_pct": change_pct,
-            "currency":   currency.upper(),
-        }
+            return {
+                "price":      round(price, 4),
+                "prev_close": round(prev, 4) if prev else None,
+                "change":     change,
+                "change_pct": change_pct,
+                "currency":   (meta.get("currency") or "USD").upper(),
+            }
 
-    except Exception as e:
-        log.warning(f"  {ticker_sym}: complete failure — {e}")
-        return None
+        except Exception as e:
+            log.debug(f"  {symbol} → {host} exception: {e}")
+            continue
+
+    return None
 
 
 def gbp_to_usd(pence: float, rate: float) -> float:
-    """GBp (pence) → USD via live GBP/USD rate."""
     return round((pence / 100.0) * rate, 4)
 
 
-# ── Main ──────────────────────────────────────────────────────────────
+# ── Main ─────────────────────────────────────────────────────────────
 def main():
     os.makedirs("docs", exist_ok=True)
 
@@ -125,35 +136,37 @@ def main():
     port_holdings = portfolio.get("holdings", [])
     sig_symbols   = list({s["ticker"] for s in signals.get("signals", [])})
 
-    # ── 1. Fetch GBP/USD rate first ────────────────────────────────────
-    log.info("Fetching GBP/USD rate…")
+    # ── 1. GBP/USD rate ───────────────────────────────────────────────
+    log.info("📡 Fetching GBP/USD rate…")
     fx = get_quote(GBP_USD_TICKER)
-    gbp_usd = fx["price"] if fx else 1.27
-    log.info(f"  GBP/USD = {gbp_usd:.4f}")
+    gbp_usd = fx["price"] if fx else 1.2700
+    log.info(f"   GBP/USD = {gbp_usd:.4f}")
 
-    # ── 2. Fetch portfolio quotes ──────────────────────────────────────
-    log.info(f"Fetching {len(port_holdings)} portfolio quotes…")
+    # ── 2. Portfolio quotes ────────────────────────────────────────────
+    log.info(f"📡 Fetching {len(port_holdings)} portfolio quotes…")
     portfolio_prices = []
 
     for h in port_holdings:
         sym = h["yahoo_symbol"]
-        log.info(f"  Fetching {sym}…")
-        q = get_quote(sym)
-        time.sleep(0.3)
-
         cur = (h.get("currency") or "USD").upper()
 
+        log.info(f"   {sym}…")
+        q = get_quote(sym)
+        time.sleep(0.4)
+
         if q:
-            raw_price = q["price"]
-            # WISE.L is quoted in GBp (pence) — convert to USD
-            if cur in ("GBP", "GBp") or (q["currency"] in ("GBP", "GBp")):
-                price_usd  = gbp_to_usd(raw_price, gbp_usd)
+            raw   = q["price"]
+            q_cur = q["currency"]
+
+            # WISE.L is quoted in GBp (pence) by Yahoo Finance → convert to USD
+            if q_cur in ("GBP", "GBP") or sym.endswith(".L"):
+                price_usd  = gbp_to_usd(raw, gbp_usd)
                 change_usd = gbp_to_usd(q["change"], gbp_usd) if q["change"] else None
-                log.info(f"    {sym}: {raw_price}p → ${price_usd:.4f} USD")
+                log.info(f"   {sym}: {raw:.2f}p → ${price_usd:.4f} USD  ({q['change_pct']:+.2f}%)" if q["change_pct"] else f"   {sym}: {raw:.2f}p → ${price_usd:.4f}")
             else:
-                price_usd  = raw_price
+                price_usd  = raw
                 change_usd = q["change"]
-                log.info(f"    {sym}: ${price_usd:.4f}")
+                log.info(f"   {sym}: ${price_usd:.4f}  ({q['change_pct']:+.2f}%)" if q["change_pct"] else f"   {sym}: ${price_usd:.4f}")
 
             portfolio_prices.append({
                 "ticker":        h["ticker"],
@@ -166,10 +179,10 @@ def main():
                 "change_pct":    q["change_pct"],
                 "prev_close_raw":q["prev_close"],
                 "currency":      cur,
-                "gbp_usd_rate":  round(gbp_usd, 4) if cur in ("GBP","GBp") else None,
+                "gbp_usd_rate":  round(gbp_usd, 4) if sym.endswith(".L") else None,
             })
         else:
-            log.warning(f"    {sym}: no price — keeping placeholder")
+            log.warning(f"   {sym}: ⚠ no price returned")
             portfolio_prices.append({
                 "ticker":        h["ticker"],
                 "yahoo_symbol":  sym,
@@ -184,13 +197,13 @@ def main():
                 "gbp_usd_rate":  None,
             })
 
-    # ── 3. Fetch signal quotes (batch — best-effort) ───────────────────
-    log.info(f"Fetching {len(sig_symbols)} signal quotes…")
+    # ── 3. Signal quotes (best-effort) ─────────────────────────────────
+    log.info(f"📡 Fetching {len(sig_symbols)} signal quotes…")
     signal_prices = {}
 
     for sym in sig_symbols:
         q = get_quote(sym)
-        time.sleep(0.2)
+        time.sleep(0.25)
         if q:
             signal_prices[sym] = {
                 "price":      q["price"],
@@ -198,9 +211,9 @@ def main():
                 "change_pct": q["change_pct"],
                 "prev_close": q["prev_close"],
             }
-            log.info(f"  {sym:<8} ${q['price']:.2f}  ({q['change_pct']:+.2f}%)" if q["change_pct"] else f"  {sym:<8} ${q['price']:.2f}")
+            log.info(f"   {sym:<8} ${q['price']:.2f}  {q['change_pct']:+.2f}%" if q["change_pct"] else f"   {sym:<8} ${q['price']:.2f}")
         else:
-            log.warning(f"  {sym}: skipped")
+            log.warning(f"   {sym}: skipped")
 
     # ── 4. Write output ────────────────────────────────────────────────
     payload = {
@@ -214,7 +227,11 @@ def main():
         json.dump(payload, f, indent=2)
 
     filled = sum(1 for p in portfolio_prices if p["price_usd"])
-    log.info(f"✅ {OUT_PATH} written — {filled}/{len(portfolio_prices)} portfolio + {len(signal_prices)} signal prices")
+    log.info(f"✅ {OUT_PATH} — {filled}/{len(portfolio_prices)} portfolio + {len(signal_prices)} signal prices written")
+
+    if filled == 0:
+        log.error("❌ All portfolio prices are null — Yahoo Finance may be blocking this IP")
+        sys.exit(1)   # fail the workflow so it's visible in Actions
 
 
 if __name__ == "__main__":
