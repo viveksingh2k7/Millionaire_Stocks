@@ -557,86 +557,101 @@ const pct = (n,d=100) => (n*100/d).toFixed(1)+"%";
 const COLORS = ["#00c805","#6770e7","#f5a623","#a855f7"];
 
 /* ═══════════════════════════════════════════════════════════════
-   LIVE PRICE ENGINE
-   Fetches real prices for EVERY ticker (signals + portfolio)
-   directly from Yahoo Finance in the browser.
+   LIVE PRICE ENGINE  v4
+   • Primary:  Yahoo Finance v7 quote batch — 1 HTTP request for
+               all tickers, max 25 per batch to stay under URL limit
+   • Fallback: Yahoo Finance v8 chart per-ticker with 150 ms gap
    Browsers are not IP-blocked; GitHub Actions IPs are.
 ════════════════════════════════════════════════════════════════ */
 
-/* ── Parse one Yahoo Finance chart-API result ─────────── */
-function parseYFMeta(meta) {
-  if (!meta) return null;
-  const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
-  const prev  = meta.chartPreviousClose || meta.previousClose;
-  if (!price) return null;
-  const chg    = prev ? price - prev : null;
-  const chgPct = prev ? chg / prev * 100 : null;
-  return {
-    price:      +price.toFixed(4),
-    prev_close: prev   ? +prev.toFixed(4)  : null,
-    change:     chg    ? +chg.toFixed(4)   : null,
-    change_pct: chgPct ? +chgPct.toFixed(4): null,
-    currency:   (meta.currency || "USD").toUpperCase(),
-  };
+const YF1 = "https://query1.finance.yahoo.com";
+const YF2 = "https://query2.finance.yahoo.com";
+
+/* Fetch a single ticker via v8/chart (most reliable per-ticker) */
+async function fetchOne(sym) {
+  for (const host of [YF1, YF2]) {
+    try {
+      const url = `${host}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
+      const r   = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!r.ok) continue;
+      const j    = await r.json();
+      const meta = j?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
+      const prev  = meta.chartPreviousClose  || meta.previousClose;
+      if (!price) continue;
+      const chg    = prev ? price - prev : null;
+      const chgPct = prev ? chg / prev * 100 : null;
+      return {
+        price:      +price.toFixed(4),
+        prev_close: prev   ? +prev.toFixed(4)   : null,
+        change:     chg    ? +chg.toFixed(4)     : null,
+        change_pct: chgPct ? +chgPct.toFixed(4)  : null,
+        currency:   (meta.currency || "USD").toUpperCase(),
+      };
+    } catch { continue; }
+  }
+  return null;
 }
 
-/* ── Yahoo Finance v7 BATCH quote (all symbols, 1 request) ─
-   Returns {AAPL:{price,change,change_pct,...}, NVDA:{...}, ...}
-   Falls back to individual v8 chart calls if batch fails.    */
-async function fetchBatch(symbols) {
-  const results = {};
-  const usd = symbols.filter(s => s !== "GBPUSD=X");
-  const fx  = symbols.includes("GBPUSD=X") ? ["GBPUSD=X"] : [];
-
-  /* Strategy 1: v7 finance/quote batch endpoint ─────────── */
-  try {
-    for (const host of ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"]) {
-      const url = `${host}/v7/finance/quote?symbols=${[...usd,...fx].join(",")}&fields=regularMarketPrice,regularMarketPreviousClose,regularMarketChange,regularMarketChangePercent,currency`;
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) continue;
-      const json = await res.json();
-      const quotes = json?.quoteResponse?.result || [];
-      if (!quotes.length) continue;
-
+/* Fetch up to 25 tickers in one v7 batch request */
+async function fetchV7Batch(syms) {
+  // encode each symbol individually to handle GBPUSD=X safely
+  const joined = syms.map(encodeURIComponent).join(",");
+  for (const host of [YF1, YF2]) {
+    try {
+      const url = `${host}/v7/finance/quote?symbols=${joined}` +
+        `&fields=regularMarketPrice,regularMarketPreviousClose,` +
+        `regularMarketChange,regularMarketChangePercent,currency`;
+      const r = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!r.ok) continue;
+      const j      = await r.json();
+      const quotes = j?.quoteResponse?.result;
+      if (!quotes?.length) continue;
+      const out = {};
       quotes.forEach(q => {
-        const price = q.regularMarketPrice;
-        const prev  = q.regularMarketPreviousClose;
-        if (!price) return;
-        results[q.symbol] = {
-          price:      +price.toFixed(4),
-          prev_close: prev ? +prev.toFixed(4) : null,
-          change:     q.regularMarketChange     ? +q.regularMarketChange.toFixed(4)    : null,
+        if (!q.regularMarketPrice) return;
+        out[q.symbol] = {
+          price:      +q.regularMarketPrice.toFixed(4),
+          prev_close: q.regularMarketPreviousClose ? +q.regularMarketPreviousClose.toFixed(4) : null,
+          change:     q.regularMarketChange        ? +q.regularMarketChange.toFixed(4)        : null,
           change_pct: q.regularMarketChangePercent ? +q.regularMarketChangePercent.toFixed(4) : null,
           currency:   (q.currency || "USD").toUpperCase(),
         };
       });
+      if (Object.keys(out).length) return out;
+    } catch { continue; }
+  }
+  return null;
+}
 
-      if (Object.keys(results).length > 0) {
-        console.log(`✅ Batch quote: ${Object.keys(results).length}/${symbols.length} symbols loaded`);
-        return results;  // ← success, no need to fall back
-      }
-    }
-  } catch(e) {
-    console.warn("Batch quote failed, falling back to individual chart calls:", e);
+/* Master fetch: batch v7 first, then retry misses with v8 */
+async function fetchAllPrices(symbols) {
+  const result  = {};
+  const BATCH   = 25;                         // stay under URL length limit
+  const chunks  = [];
+  for (let i = 0; i < symbols.length; i += BATCH)
+    chunks.push(symbols.slice(i, i + BATCH));
+
+  /* ── Round 1: v7 batch (fast, 1 request per 25 tickers) ── */
+  for (const chunk of chunks) {
+    const got = await fetchV7Batch(chunk);
+    if (got) Object.assign(result, got);
+    await new Promise(r => setTimeout(r, 200)); // brief gap between chunks
   }
 
-  /* Strategy 2: v8 chart API, one request per ticker (serial, no rate-limit) */
-  console.warn("Falling back to individual chart calls…");
-  for (const sym of symbols) {
-    for (const host of ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"]) {
-      try {
-        const url = `${host}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
-        const res = await fetch(url, { headers: { Accept: "application/json" } });
-        if (!res.ok) continue;
-        const json  = await res.json();
-        const parsed = parseYFMeta(json?.chart?.result?.[0]?.meta);
-        if (parsed) { results[sym] = parsed; break; }
-      } catch { continue; }
+  /* ── Round 2: retry anything that came back null ────────── */
+  const missing = symbols.filter(s => !result[s]);
+  if (missing.length) {
+    console.log(`⚠ ${missing.length} tickers missing after batch, retrying individually…`);
+    for (const sym of missing) {
+      const q = await fetchOne(sym);
+      if (q) result[sym] = q;
+      await new Promise(r => setTimeout(r, 150));
     }
-    // Small gap between requests to avoid rate limiting
-    await new Promise(r => setTimeout(r, 120));
   }
-  return results;
+
+  return result;
 }
 
 /* Build unified PRICES map from a raw quotes dict */
@@ -702,13 +717,18 @@ async function fetchLivePricesAndRender() {
   // Collect every unique ticker we need
   const sigTickers  = [...new Set(ALL_SIG.map(s => s.ticker))];
   const portSymbols = PORTFOLIO.map(h => h.yahoo_symbol || h.ticker);
-  const allSymbols  = [...new Set(["GBPUSD=X", ...sigTickers, ...portSymbols])];
+  // GBPUSD=X fetched separately (special chars in batch URL)
+  const stockSymbols = [...new Set([...sigTickers, ...portSymbols])];
 
   updateTickerStatus("fetching…", "var(--gold)");
+  console.log(`📡 Fetching live prices for ${stockSymbols.length} tickers…`);
 
-  const quotes = await fetchBatch(allSymbols, 8);
-  const fxRate = quotes["GBPUSD=X"]?.price || 1.27;
-  delete quotes["GBPUSD=X"];
+  // Fetch FX rate and stocks in parallel
+  const [fxResult, quotes] = await Promise.all([
+    fetchOne("GBPUSD=X"),
+    fetchAllPrices(stockSymbols),
+  ]);
+  const fxRate = fxResult?.price || 1.27;
 
   const filled = Object.keys(quotes).length;
   if (filled === 0) {
