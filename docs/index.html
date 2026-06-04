@@ -682,6 +682,69 @@ function buildPriceMap(quotes, holdings, fxRate) {
   return map;
 }
 
+/* ── Dedicated portfolio price refresh ────────────────────
+   Called every time the Portfolio tab is opened.
+   Fetches ONLY the 4 portfolio tickers + GBPUSD=X so it is
+   fast and immune to signal-ticker rate limiting.            */
+async function refreshPortfolioPrices() {
+  if (!PORTFOLIO.length) return;
+
+  // Show loading state on cards
+  const freshEl = document.getElementById("p-fresh-label");
+  if (freshEl) freshEl.textContent = "⏳ Fetching latest prices…";
+
+  try {
+    // Gather portfolio yahoo symbols (e.g. WISE.L, AMZN, MOH, PLTR)
+    const portSyms  = PORTFOLIO.map(h => h.yahoo_symbol || h.ticker);
+    const stockSyms = [...new Set(portSyms)]; // deduplicate
+
+    // Fetch FX + all portfolio tickers in parallel
+    const [fxResult, quotes] = await Promise.all([
+      fetchOne("GBPUSD=X"),
+      fetchAllPrices(stockSyms),
+    ]);
+    const fxRate = fxResult?.price || 1.27;
+    const filled = Object.keys(quotes).length;
+
+    if (filled === 0) {
+      if (freshEl) freshEl.textContent = "⚠ Market closed — showing last known prices";
+      return;
+    }
+
+    // Build PRICES entries for each holding
+    PORTFOLIO.forEach(h => {
+      const sym   = h.yahoo_symbol || h.ticker;
+      const q     = quotes[sym];
+      if (!q) return;
+      const isLSE = sym.endsWith(".L");
+      const price = isLSE ? +((q.price  / 100) * fxRate).toFixed(4) : q.price;
+      const chg   = isLSE && q.change ? +((q.change / 100) * fxRate).toFixed(4) : q.change;
+      // Merge into global PRICES map (doesn't wipe signal prices)
+      PRICES[h.ticker] = {
+        price_usd:  price,
+        change_usd: chg,
+        change_pct: q.change_pct,
+        source:     "live",
+      };
+    });
+
+    // Re-render portfolio with fresh prices
+    bootstrapPortfolio();
+
+    const ts = new Date();
+    if (freshEl) {
+      freshEl.textContent =
+        `⚡ Live prices as of ${cstLabel(ts)} · ${filled}/${PORTFOLIO.length} loaded · refreshes on each visit`;
+      freshEl.style.color = "var(--green)";
+    }
+    console.log(`✅ Portfolio prices refreshed: ${filled} tickers`);
+
+  } catch(e) {
+    if (freshEl) freshEl.textContent = "⚠ Price fetch failed — showing last known prices";
+    console.warn("Portfolio price refresh failed:", e);
+  }
+}
+
 /* Apply PRICES map → overlay live prices on ALL_SIG */
 function applyPriceMap(map) {
   PRICES = map;
@@ -1350,6 +1413,8 @@ function showPage(page, btn, filter){
     $("section-title").textContent={ALL:"All Signals",BUY:"Buy Signals",SELL:"Sell Signals"}[filter];
     renderOverview();
   }
+  // Every time Portfolio tab opens → fetch fresh prices for all 4 holdings
+  if(page === "portfolio") refreshPortfolioPrices();
 }
 
 /* ── Overview controls ─────────────────────────────── */
