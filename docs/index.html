@@ -1176,44 +1176,63 @@ function buildPortCharts(enriched, totalVal){
 
 /* ── Modal ─────────────────────────────────────────── */
 function openModal(ticker){
-  const r=ALL_SIG.find(s=>s.ticker===ticker);
-  const ph=PORTFOLIO.find(p=>p.ticker===ticker);
-  const ib=r?.signal==="BUY";
-  const iconCls=r?.signal==="BUY"?"bi":r?.signal==="SELL"?"si":"ni";
-  const price=r?.close??ph?.avg_cost??0;
+  const r   = ALL_SIG.find(s => s.ticker === ticker);
+  const ph  = PORTFOLIO.find(p => p.ticker === ticker);
+  const ib  = r?.signal === "BUY";
+  const iconCls = r?.signal==="BUY" ? "bi" : r?.signal==="SELL" ? "si" : "ni";
 
-  $("m-icon").className="m-icon "+iconCls;
-  $("m-icon").textContent=ticker.slice(0,2);
-  $("m-ticker").textContent=ticker+(ph?` · ${ph.name}`:"");
-  $("m-price").textContent=fp(price)+(ph?`  ·  ${ph.shares} shares`:"  ·  S&P 500");
-  $("m-sig-pill").innerHTML=r?`<span class="card-signal sig-${ib?"buy":"sell"}">${r.signal}</span>`:
-    ph?`<span class="card-signal sig-hold">IN PORTFOLIO</span>`:"";
+  // Always prefer live price from PRICES map over stale signals.json value
+  const liveEntry = PRICES[ticker];
+  const livePrice = liveEntry?.price_usd ?? null;
+  const price     = livePrice ?? r?.close ?? ph?.avg_cost ?? 0;
+  const isLive    = !!livePrice;
+  const chgPct    = liveEntry?.change_pct ?? null;
 
-  $("m-grid").innerHTML=r?[
-    ["Price",fp(r.close)],["RSI",fc(r.rsi,1)],
-    ["MACD Diff",fc(r.macd_diff,4)],["ATR%",fc(r.atr_pct)+"%"],
-    ["SMA-50",fp(r.sma_50)],["SMA-200",fp(r.sma_200)],
-    ["BB Upper",fp(r.bb_upper)],["BB Lower",fp(r.bb_lower)],
-  ].map(([l,v])=>`<div class="m-metric"><div class="m-metric-label">${l}</div><div class="m-metric-val">${v}</div></div>`).join("")
-  :ph?`<div class="m-metric"><div class="m-metric-label">Avg Cost</div><div class="m-metric-val">${fp(ph.avg_cost)}</div></div>
-       <div class="m-metric"><div class="m-metric-label">Shares</div><div class="m-metric-val">${ph.shares}</div></div>
-       <div class="m-metric"><div class="m-metric-label">Cost Basis</div><div class="m-metric-val">${fp(ph.avg_cost*ph.shares)}</div></div>
-       <div class="m-metric"><div class="m-metric-label">Market Value</div><div class="m-metric-val">${fp(price*ph.shares)}</div></div>`
-  :"";
+  $("m-icon").className   = "m-icon " + iconCls;
+  $("m-icon").textContent = ticker.slice(0,2);
+  $("m-ticker").textContent = ticker + (ph ? ` · ${ph.name}` : "");
+  $("m-price").innerHTML  = fp(price)
+    + (isLive ? ` <span class="live-badge">LIVE</span>` : ` <span class="stale-badge">SCAN</span>`)
+    + (ph ? `  ·  ${ph.shares} shares` : "  ·  S&P 500")
+    + (chgPct != null ? `  <span style="color:${chgPct>=0?"var(--green)":"var(--red)"};font-size:12px;font-weight:700">${chgPct>=0?"+":""}${chgPct.toFixed(2)}% today</span>` : "");
 
-  const trigs=ib?r.buy_triggers||[]:r?.sell_triggers||[];
-  $("m-trig-label").textContent=ib?"Buy Triggers":"Sell Triggers";
-  $("m-trigs").innerHTML=trigs.length
-    ?trigs.map(t=>`<span class="trig trig-${ib?"buy":"sell"}">${t.replace(/_/g," ")}</span>`).join("")
-    :`<span style="color:var(--text3)">—</span>`;
+  $("m-sig-pill").innerHTML = r
+    ? `<span class="card-signal sig-${ib?"buy":"sell"}">${r.signal}</span>`
+    : ph ? `<span class="card-signal sig-hold">IN PORTFOLIO</span>` : "";
 
-  $("m-actions").innerHTML=`
+  $("m-grid").innerHTML = r ? [
+    ["Price",       fp(price)],          // ← always live price
+    ["RSI",         fc(r.rsi, 1)],
+    ["MACD Diff",   fc(r.macd_diff, 4)],
+    ["ATR%",        fc(r.atr_pct) + "%"],
+    ["SMA-50",      fp(r.sma_50)],
+    ["SMA-200",     fp(r.sma_200)],
+    ["BB Upper",    fp(r.bb_upper)],
+    ["BB Lower",    fp(r.bb_lower)],
+  ].map(([l,v]) => `<div class="m-metric"><div class="m-metric-label">${l}</div><div class="m-metric-val">${v}</div></div>`).join("")
+  : ph ? `
+    <div class="m-metric"><div class="m-metric-label">Live Price</div><div class="m-metric-val">${fp(price)}</div></div>
+    <div class="m-metric"><div class="m-metric-label">Avg Cost</div><div class="m-metric-val">${fp(ph.avg_cost)}</div></div>
+    <div class="m-metric"><div class="m-metric-label">Shares</div><div class="m-metric-val">${ph.shares}</div></div>
+    <div class="m-metric"><div class="m-metric-label">Market Value</div><div class="m-metric-val">${fp(price * ph.shares)}</div></div>
+    <div class="m-metric"><div class="m-metric-label">Cost Basis</div><div class="m-metric-val">${fp(ph.avg_cost * ph.shares)}</div></div>
+    <div class="m-metric"><div class="m-metric-label">P&L</div>
+      <div class="m-metric-val" style="color:${price>=ph.avg_cost?"var(--green)":"var(--red)"}">${price>=ph.avg_cost?"+":""}${fp(Math.abs((price-ph.avg_cost)*ph.shares))}</div>
+    </div>` : "";
+
+  const trigs = ib ? r.buy_triggers||[] : r?.sell_triggers||[];
+  $("m-trig-label").textContent = ib ? "Buy Triggers" : "Sell Triggers";
+  $("m-trigs").innerHTML = trigs.length
+    ? trigs.map(t=>`<span class="trig trig-${ib?"buy":"sell"}">${t.replace(/_/g," ")}</span>`).join("")
+    : `<span style="color:var(--text3)">—</span>`;
+
+  $("m-actions").innerHTML = `
     <a class="m-btn m-btn-ext" href="https://finance.yahoo.com/quote/${ticker}" target="_blank">Yahoo Finance ↗</a>
     <button class="m-btn ${ib?"m-btn-buy":"m-btn-sell"}"
-      onclick="tradeAlert('${r?r.signal:ph?'BUY':'BUY'}','${ticker}')">${ib?"🟢 Buy "+ticker:"🔴 Sell "+ticker}</button>`;
+      onclick="tradeAlert('${r ? r.signal : "BUY"}','${ticker}')">${ib ? "🟢 Buy "+ticker : "🔴 Sell "+ticker}</button>`;
 
   $("modal-overlay").classList.add("open");
-  document.body.style.overflow="hidden";
+  document.body.style.overflow = "hidden";
 }
 
 function tradeAlert(side,ticker){
