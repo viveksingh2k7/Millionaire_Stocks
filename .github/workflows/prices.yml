@@ -1,69 +1,87 @@
 name: 💰 Live Price Fetcher
 
 on:
-  # ── Every 15 minutes Mon–Fri during US market hours (13:30–21:00 UTC = 9:30–17:00 ET) ──
+  # ──────────────────────────────────────────────────────────────────────
+  # Schedule: 7 AM – 9 PM CST every day
+  #
+  # CST = UTC−6 │ CDT = UTC−5 (summer)
+  #   7 AM CST  = 13:00 UTC      │  7 AM CDT  = 12:00 UTC
+  #   9 PM CST  = 03:00 UTC+1    │  9 PM CDT  = 02:00 UTC+1
+  #
+  # Two crons because the window crosses midnight UTC:
+  #   Line 1: 12:00–23:59 UTC  →  covers 7 AM CDT / 7 AM CST start
+  #   Line 2: 00:00–03:59 UTC  →  covers up to 9 PM CST / 10 PM CDT end
+  #
+  # Runs every 15 minutes — yfinance returns latest available price
+  # so weekend runs simply serve the last Friday close.
+  # ──────────────────────────────────────────────────────────────────────
   schedule:
-    - cron: "*/15 13-20 * * 1-5"   # every 15 min, 13:00–20:59 UTC
-    - cron: "0 21 * * 1-5"         # one final run at market close (21:00 UTC / 17:00 ET)
+    - cron: "*/15 12-23 * * *"   # 06:00–18:00 CST  (12:00–23:59 UTC)
+    - cron: "*/15 0-3   * * *"   # 18:00–21:00 CST  (00:00–03:59 UTC)
 
-  # ── Manual trigger ────────────────────────────────────────────────
+  # ── Manual trigger from Actions tab ──────────────────────────────────
   workflow_dispatch:
 
-# Only one price run at a time
+# Only one price-fetch job runs at a time
 concurrency:
   group: price-fetcher
   cancel-in-progress: true
 
 jobs:
   fetch-prices:
-    name: Fetch real-time quotes
+    name: Fetch & publish real-time quotes
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write   # required to commit prices.json back to the repo
+      contents: write   # allows git push back to the repo
 
     steps:
-      # ── 1. Checkout ────────────────────────────────────────────────
+      # ── 1. Checkout ──────────────────────────────────────────────────
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 2. Python ─────────────────────────────────────────────────
+      # ── 2. Python ────────────────────────────────────────────────────
       - name: 🐍 Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
-      # ── 3. Install yfinance (lightweight — no Alpaca needed) ───────
+      # ── 3. Install dependencies ──────────────────────────────────────
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install yfinance==0.2.40 requests==2.32.3
 
-      # ── 4. Ensure docs/ exists ─────────────────────────────────────
+      # ── 4. Ensure docs/ exists ───────────────────────────────────────
       - name: 📁 Prepare docs directory
         run: mkdir -p docs
 
-      # ── 5. Fetch prices ────────────────────────────────────────────
+      # ── 5. Fetch real-time prices ────────────────────────────────────
       - name: 💰 Fetch real-time prices
         run: python src/fetch_prices.py
 
-      # ── 6. Commit prices.json back to repo ─────────────────────────
-      - name: 🌐 Publish prices to GitHub Pages
+      # ── 6. Commit prices.json → GitHub Pages ─────────────────────────
+      - name: 🌐 Publish to GitHub Pages
         run: |
+          # Show current CST time in the commit message
+          CST_TIME=$(TZ="America/Chicago" date '+%Y-%m-%d %I:%M %p CST')
+
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/prices.json
+
           if git diff --cached --quiet; then
-            echo "Prices unchanged — no commit needed."
+            echo "✅ Prices unchanged — skipping commit."
           else
-            git commit -m "chore: update prices.json [$(date -u '+%H:%M UTC')] [skip ci]"
+            git commit -m "chore: prices update [${CST_TIME}] [skip ci]"
             git push
+            echo "✅ prices.json committed and pushed."
           fi
 
-      # ── 7. Notify on failure ───────────────────────────────────────
+      # ── 7. Notify on failure ─────────────────────────────────────────
       - name: 🚨 Notify on failure
         if: failure()
         run: |

@@ -290,10 +290,12 @@
   /* ═══ PRICE TICKER BAR ════════════════════════════════════════════ */
   #price-ticker-bar{
     background:var(--bg2);border-bottom:1px solid var(--border);
-    height:32px;overflow:hidden;
+    height:34px;overflow:hidden;
     display:flex;align-items:center;justify-content:space-between;
-    padding:0 16px 0 0;gap:12px;
+    padding:0 14px 0 0;gap:10px;
+    transition:border-color .3s;
   }
+  #price-ticker-bar.stale{ border-bottom-color:rgba(245,166,35,.4); }
   .pt-scroll{flex:1;overflow:hidden;position:relative;}
   .pt-track{
     display:inline-flex;align-items:center;gap:0;
@@ -608,7 +610,8 @@ async function loadAll() {
 
   // Auto-refresh prices every 60 s while the tab is visible
   if(priceRefreshTimer) clearInterval(priceRefreshTimer);
-  priceRefreshTimer = setInterval(refreshPrices, 60_000);
+  priceRefreshTimer = setInterval(refreshPrices, 30_000);  // every 30 s
+  startLiveClock();
 }
 
 /* ── Refresh prices only (lightweight) ─────────────── */
@@ -637,33 +640,96 @@ async function refreshPrices() {
 }
 
 /* ── Scrolling price ticker bar ─────────────────────── */
+/* ── CST helper ─────────────────────────────────────── */
+function toCSTString(date, opts={}) {
+  return date.toLocaleString("en-US", { timeZone: "America/Chicago", ...opts });
+}
+function toCSTTime(date) {
+  return date.toLocaleString("en-US", {
+    timeZone: "America/Chicago",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: true
+  });
+}
+function cstLabel(date) {
+  // Returns e.g. "02:35:10 PM CST"
+  const s = toCSTTime(date);
+  // Detect CDT vs CST
+  const zone = date.toLocaleString("en-US",{timeZone:"America/Chicago",timeZoneName:"short"}).split(" ").pop();
+  return `${s} ${zone}`;
+}
+
+/* ── Scrolling price ticker bar ─────────────────────── */
 function renderPriceTicker(priceData) {
-  let bar = document.getElementById("price-ticker-bar");
+  const bar = document.getElementById("price-ticker-bar");
   if(!bar) return;
+
+  const ts       = priceData.fetched_at ? new Date(priceData.fetched_at) : null;
+  const ageMs    = ts ? Date.now() - ts.getTime() : null;
+  const ageMin   = ageMs ? Math.floor(ageMs / 60000) : null;
+  const isStale  = ageMin !== null && ageMin > 20;
 
   const items = (priceData.portfolio||[])
     .filter(p => p.price_usd)
     .map(p => {
       const chgPct = p.change_pct;
-      const up = chgPct >= 0;
+      const up = chgPct != null ? chgPct >= 0 : null;
       const sign = up ? "+" : "";
       return `<span class="pt-item">
         <span class="pt-ticker">${p.ticker}</span>
         <span class="pt-price">$${Number(p.price_usd).toFixed(2)}</span>
-        <span class="pt-chg ${up?"pt-up":"pt-dn"}">${sign}${chgPct!=null?Number(chgPct).toFixed(2)+"%":"—"}</span>
+        <span class="pt-chg ${up===null?"":up?"pt-up":"pt-dn"}">${chgPct!=null?sign+Number(chgPct).toFixed(2)+"%":"—"}</span>
       </span>`;
     });
 
-  const ts = priceData.fetched_at ? new Date(priceData.fetched_at) : null;
-  const label = ts ? `Last updated: ${ts.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} UTC` : "";
+  if(!items.length) { bar.style.display="none"; return; }
 
-  if(items.length) {
-    bar.innerHTML = `<div class="pt-scroll"><div class="pt-track">${items.join(" &nbsp;·&nbsp; ")} &nbsp;·&nbsp; ${items.join(" &nbsp;·&nbsp; ")}</div></div>
-      <span class="pt-meta">${label} &nbsp; <span class="pt-live-dot"></span> LIVE</span>`;
-    bar.style.display = "flex";
-  } else {
-    bar.style.display = "none";
-  }
+  const timeLabel = ts ? cstLabel(ts) : "—";
+  const staleHtml = isStale
+    ? `<span style="color:var(--gold);font-weight:700;margin-right:6px;">⚠ ${ageMin}m old</span>`
+    : "";
+
+  bar.innerHTML = `
+    <div class="pt-scroll">
+      <div class="pt-track" id="pt-track">
+        ${items.join(" &nbsp;·&nbsp; ")} &nbsp;·&nbsp; ${items.join(" &nbsp;·&nbsp; ")}
+      </div>
+    </div>
+    <div class="pt-meta">
+      ${staleHtml}
+      <span id="pt-time-label">Updated ${timeLabel}</span>
+      &nbsp;
+      <span class="pt-live-dot" id="pt-dot" style="${isStale?"background:var(--gold)":""}"></span>
+      <span id="pt-status" style="color:${isStale?"var(--gold)":"var(--green)"}">${isStale?"STALE":"LIVE"}</span>
+      &nbsp;·&nbsp;
+      <span id="pt-countdown" style="color:var(--text3)"></span>
+    </div>`;
+  bar.style.display = "flex";
+}
+
+/* ── Live clock + countdown to next refresh ─────────── */
+let _nextRefresh = Date.now() + 30_000;
+
+function startLiveClock() {
+  setInterval(() => {
+    // CST clock in nav
+    const navTime = document.getElementById("nav-time");
+    if(navTime) navTime.textContent = cstLabel(new Date());
+
+    // Countdown in ticker bar
+    const cd = document.getElementById("pt-countdown");
+    if(cd) {
+      const secLeft = Math.max(0, Math.ceil((_nextRefresh - Date.now()) / 1000));
+      cd.textContent = `refresh in ${secLeft}s`;
+    }
+  }, 1000);
+}
+
+/* Patch refreshPrices to reset countdown */
+const _origRefresh = refreshPrices;
+async function refreshPrices() {
+  _nextRefresh = Date.now() + 30_000;
+  await _origRefresh();
 }
 
 /* ── Overview bootstrap ─────────────────────────────── */
@@ -674,8 +740,7 @@ function bootstrapOverview(data){
   b.textContent=data.dry_run?"DRY RUN":"LIVE";
   b.className="nav-badge "+(data.dry_run?"badge-dry":"badge-live");
   // time
-  const ts=data.generated_at;
-  $("nav-time").textContent=ts?new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+" UTC":"—";
+  $("nav-time").textContent = cstLabel(new Date());
   // hero
   $("h-total").textContent=s.total??"—";
   $("h-buy").textContent  =s.buy??"—";
@@ -823,7 +888,7 @@ function bootstrapPortfolio(){
   // Freshness label shown in hero
   const ft = PRICES_META?.fetched_at;
   const freshLabel = ft
-    ? `Prices as of ${new Date(ft).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} UTC · ${timeAgo(ft)}`
+    ? `⚡ Prices as of ${cstLabel(new Date(ft))} · ${timeAgo(ft)} · auto-refreshes every 30s`
     : "Prices from latest scan";
   const freshEl = document.getElementById("p-fresh-label");
   if(freshEl) freshEl.textContent = freshLabel;
