@@ -1,0 +1,67 @@
+name: 💰 Live Price Fetcher
+
+on:
+  # ── Every 15 minutes Mon–Fri during US market hours (13:30–21:00 UTC = 9:30–17:00 ET) ──
+  schedule:
+    - cron: "*/15 13-20 * * 1-5"   # every 15 min, 13:00–20:59 UTC
+    - cron: "0 21 * * 1-5"         # one final run at market close (21:00 UTC / 17:00 ET)
+
+  # ── Manual trigger ────────────────────────────────────────────────
+  workflow_dispatch:
+
+# Only one price run at a time
+concurrency:
+  group: price-fetcher
+  cancel-in-progress: true
+
+jobs:
+  fetch-prices:
+    name: Fetch real-time quotes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python ─────────────────────────────────────────────────
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install yfinance (lightweight — no Alpaca needed) ───────
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance==0.2.40 requests==2.32.3
+
+      # ── 4. Ensure docs/ exists ─────────────────────────────────────
+      - name: 📁 Prepare docs directory
+        run: mkdir -p docs
+
+      # ── 5. Fetch prices ────────────────────────────────────────────
+      - name: 💰 Fetch real-time prices
+        run: python src/fetch_prices.py
+
+      # ── 6. Commit prices.json back to repo ─────────────────────────
+      - name: 🌐 Publish prices to GitHub Pages
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/prices.json
+          if git diff --cached --quiet; then
+            echo "Prices unchanged — no commit needed."
+          else
+            git commit -m "chore: update prices.json [$(date -u '+%H:%M UTC')] [skip ci]"
+            git push
+          fi
+
+      # ── 7. Notify on failure ───────────────────────────────────────
+      - name: 🚨 Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Price fetcher failed — dashboard will show stale prices."
+          echo "Run ID: ${{ github.run_id }}"

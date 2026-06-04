@@ -1,0 +1,11 @@
+{
+  "fetched_at": "2025-06-03T13:35:00Z",
+  "gbp_usd_rate": 1.27,
+  "portfolio": [
+    {"ticker":"WISE","yahoo_symbol":"WISE.L","name":"Wise plc (LSE)","shares":100,"avg_cost_usd":9.85,"price_usd":null,"change_usd":null,"change_pct":null,"currency":"GBp","gbp_usd_rate":1.27},
+    {"ticker":"AMZN","yahoo_symbol":"AMZN","name":"Amazon.com Inc","shares":100,"avg_cost_usd":182.50,"price_usd":null,"change_usd":null,"change_pct":null,"currency":"USD","gbp_usd_rate":null},
+    {"ticker":"MOH","yahoo_symbol":"MOH","name":"Molina Healthcare Inc","shares":100,"avg_cost_usd":299.40,"price_usd":null,"change_usd":null,"change_pct":null,"currency":"USD","gbp_usd_rate":null},
+    {"ticker":"PLTR","yahoo_symbol":"PLTR","name":"Palantir Technologies","shares":100,"avg_cost_usd":24.80,"price_usd":null,"change_usd":null,"change_pct":null,"currency":"USD","gbp_usd_rate":null}
+  ],
+  "signal_prices": {}
+}

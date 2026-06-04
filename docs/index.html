@@ -286,6 +286,45 @@
   footer a{color:var(--text3);text-decoration:none;}
   footer a:hover{color:var(--text2);}
   .footer-links{display:flex;gap:14px;}
+
+  /* ═══ PRICE TICKER BAR ════════════════════════════════════════════ */
+  #price-ticker-bar{
+    background:var(--bg2);border-bottom:1px solid var(--border);
+    height:32px;overflow:hidden;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px 0 0;gap:12px;
+  }
+  .pt-scroll{flex:1;overflow:hidden;position:relative;}
+  .pt-track{
+    display:inline-flex;align-items:center;gap:0;
+    white-space:nowrap;
+    animation:ticker 28s linear infinite;
+  }
+  @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .pt-track:hover{animation-play-state:paused;}
+  .pt-item{display:inline-flex;align-items:center;gap:6px;padding:0 6px;font-size:12px;}
+  .pt-ticker{font-weight:700;color:var(--text);}
+  .pt-price{color:var(--text2);}
+  .pt-chg{font-weight:600;font-size:11px;}
+  .pt-up{color:var(--green);}
+  .pt-dn{color:var(--red);}
+  .pt-meta{font-size:10px;color:var(--text3);white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0;}
+  .pt-live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:blink 1.4s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* ═══ REAL PRICE BADGES ═══════════════════════════════════════════ */
+  .live-badge{
+    font-size:9px;font-weight:700;letter-spacing:.4px;
+    padding:2px 6px;border-radius:4px;
+    background:rgba(0,200,5,.12);color:var(--green);
+    border:1px solid rgba(0,200,5,.2);
+    vertical-align:middle;margin-left:5px;
+  }
+  .stale-badge{
+    font-size:9px;font-weight:600;padding:2px 6px;border-radius:4px;
+    background:rgba(255,255,255,.05);color:var(--text3);
+    border:1px solid var(--border);vertical-align:middle;margin-left:5px;
+  }
   </style>
 </head>
 <body>
@@ -311,6 +350,9 @@
     <a class="nav-gh" href="https://github.com/viveksingh2k7/Millionaire_Stocks" target="_blank">⌥</a>
   </div>
 </nav>
+
+<!-- ════════ LIVE PRICE TICKER BAR ══════════════════════════════ -->
+<div id="price-ticker-bar" style="display:none"></div>
 
 <!-- ════════════════════════════════════════════════════════════
      PAGE: OVERVIEW
@@ -405,6 +447,7 @@
     <div class="port-hero-inner">
       <h1>💼 My Portfolio</h1>
       <p>Track your positions, unrealised P&amp;L, and live signals side-by-side.</p>
+      <p id="p-fresh-label" style="font-size:11px;color:var(--green);margin-top:4px;"></p>
       <div class="port-summary">
         <div class="psum ps-total"><div class="psum-label">Portfolio Value</div><div class="psum-val" id="p-total">—</div><div class="psum-sub" style="color:var(--text3)">4 positions</div></div>
         <div class="psum ps-cost"> <div class="psum-label">Total Cost</div>    <div class="psum-val" id="p-cost">—</div> <div class="psum-sub" style="color:var(--text3)">100 shares each</div></div>
@@ -486,12 +529,15 @@
 ════════════════════════════════════════════════════════════════ -->
 <script>
 /* ── State ─────────────────────────────────────────── */
-let ALL_SIG    = [];
-let PORTFOLIO  = [];
-let curFilter  = "ALL";
-let curSort    = "buy_score-desc";
-let curView    = "cards";
-let charts     = {};
+let ALL_SIG      = [];
+let PORTFOLIO    = [];
+let PRICES       = {};   // ticker → {price_usd, change_usd, change_pct}
+let PRICES_META  = {};   // raw prices.json payload
+let curFilter    = "ALL";
+let curSort      = "buy_score-desc";
+let curView      = "cards";
+let charts       = {};
+let priceRefreshTimer = null;
 
 /* ── Helpers ────────────────────────────────────────── */
 const $  = id => document.getElementById(id);
@@ -508,23 +554,116 @@ const timeAgo = iso => {
 const pct = (n,d=100) => (n*100/d).toFixed(1)+"%";
 const COLORS = ["#00c805","#6770e7","#f5a623","#a855f7"];
 
-/* ── Load ───────────────────────────────────────────── */
+/* ── Load all data ─────────────────────────────────── */
 async function loadAll() {
   showSkeletons();
-  const [sigRes, portRes] = await Promise.allSettled([
-    fetch("signals.json?t="+Date.now()),
-    fetch("portfolio.json?t="+Date.now())
+  const [sigRes, portRes, priceRes] = await Promise.allSettled([
+    fetch("signals.json?t="  + Date.now()),
+    fetch("portfolio.json?t=" + Date.now()),
+    fetch("prices.json?t="   + Date.now()),
   ]);
-  let sigData={signals:[],summary:{}}, portData={holdings:[]};
-  if(sigRes.status==="fulfilled"&&sigRes.value.ok)  sigData  = await sigRes.value.json();
-  if(portRes.status==="fulfilled"&&portRes.value.ok) portData = await portRes.value.json();
+
+  let sigData={signals:[],summary:{}}, portData={holdings:[]}, priceData={};
+  if(sigRes.status  ==="fulfilled"&&sigRes.value.ok)   sigData   = await sigRes.value.json();
+  if(portRes.status ==="fulfilled"&&portRes.value.ok)  portData  = await portRes.value.json();
+  if(priceRes.status==="fulfilled"&&priceRes.value.ok) priceData = await priceRes.value.json();
 
   ALL_SIG   = sigData.signals||[];
   PORTFOLIO = portData.holdings||[];
 
+  // Build flat price map: ticker → { price_usd, change_usd, change_pct }
+  PRICES      = {};
+  PRICES_META = priceData;
+
+  // Portfolio prices (already USD-converted by fetch_prices.py)
+  (priceData.portfolio||[]).forEach(p => {
+    if(p.price_usd) PRICES[p.ticker] = {
+      price_usd:  p.price_usd,
+      change_usd: p.change_usd,
+      change_pct: p.change_pct,
+      source:     "live",
+    };
+  });
+
+  // Signal prices (US stocks)
+  Object.entries(priceData.signal_prices||{}).forEach(([sym, q]) => {
+    if(q.price) PRICES[sym] = {
+      price_usd:  q.price,
+      change_usd: q.change,
+      change_pct: q.change_pct,
+      source:     "live",
+    };
+  });
+
+  // Overlay live prices onto ALL_SIG rows
+  ALL_SIG = ALL_SIG.map(s => {
+    const lp = PRICES[s.ticker];
+    return lp ? { ...s, close: lp.price_usd, change_usd: lp.change_usd, change_pct: lp.change_pct, price_source: "live" } : s;
+  });
+
   bootstrapOverview(sigData);
+  renderPriceTicker(priceData);
   renderOverview();
   bootstrapPortfolio();
+
+  // Auto-refresh prices every 60 s while the tab is visible
+  if(priceRefreshTimer) clearInterval(priceRefreshTimer);
+  priceRefreshTimer = setInterval(refreshPrices, 60_000);
+}
+
+/* ── Refresh prices only (lightweight) ─────────────── */
+async function refreshPrices() {
+  if(document.hidden) return;
+  try {
+    const res = await fetch("prices.json?t=" + Date.now());
+    if(!res.ok) return;
+    const priceData = await res.json();
+    PRICES_META = priceData;
+    PRICES = {};
+    (priceData.portfolio||[]).forEach(p => {
+      if(p.price_usd) PRICES[p.ticker] = { price_usd: p.price_usd, change_usd: p.change_usd, change_pct: p.change_pct, source: "live" };
+    });
+    Object.entries(priceData.signal_prices||{}).forEach(([sym,q]) => {
+      if(q.price) PRICES[sym] = { price_usd: q.price, change_usd: q.change, change_pct: q.change_pct, source: "live" };
+    });
+    ALL_SIG = ALL_SIG.map(s => {
+      const lp = PRICES[s.ticker];
+      return lp ? { ...s, close: lp.price_usd, change_usd: lp.change_usd, change_pct: lp.change_pct, price_source: "live" } : s;
+    });
+    renderPriceTicker(priceData);
+    renderOverview();
+    bootstrapPortfolio();
+  } catch(e) { /* silent */ }
+}
+
+/* ── Scrolling price ticker bar ─────────────────────── */
+function renderPriceTicker(priceData) {
+  let bar = document.getElementById("price-ticker-bar");
+  if(!bar) return;
+
+  const items = (priceData.portfolio||[])
+    .filter(p => p.price_usd)
+    .map(p => {
+      const chgPct = p.change_pct;
+      const up = chgPct >= 0;
+      const sign = up ? "+" : "";
+      return `<span class="pt-item">
+        <span class="pt-ticker">${p.ticker}</span>
+        <span class="pt-price">$${Number(p.price_usd).toFixed(2)}</span>
+        <span class="pt-chg ${up?"pt-up":"pt-dn"}">${sign}${chgPct!=null?Number(chgPct).toFixed(2)+"%":"—"}</span>
+      </span>`;
+    });
+
+  const ts = priceData.fetched_at ? new Date(priceData.fetched_at) : null;
+  const label = ts ? `Last updated: ${ts.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} UTC` : "";
+
+  if(items.length) {
+    bar.innerHTML = `<div class="pt-scroll"><div class="pt-track">${items.join(" &nbsp;·&nbsp; ")} &nbsp;·&nbsp; ${items.join(" &nbsp;·&nbsp; ")}</div></div>
+      <span class="pt-meta">${label} &nbsp; <span class="pt-live-dot"></span> LIVE</span>`;
+    bar.style.display = "flex";
+  } else {
+    bar.style.display = "none";
+  }
 }
 
 /* ── Overview bootstrap ─────────────────────────────── */
@@ -681,17 +820,28 @@ function bootstrapPortfolio(){
   const sigMap={};
   ALL_SIG.forEach(s=>sigMap[s.ticker]=s);
 
+  // Freshness label shown in hero
+  const ft = PRICES_META?.fetched_at;
+  const freshLabel = ft
+    ? `Prices as of ${new Date(ft).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} UTC · ${timeAgo(ft)}`
+    : "Prices from latest scan";
+  const freshEl = document.getElementById("p-fresh-label");
+  if(freshEl) freshEl.textContent = freshLabel;
+
   let totalVal=0, totalCost=0;
   const enriched=PORTFOLIO.map(h=>{
-    const sig=sigMap[h.ticker]||null;
-    const price=sig?sig.close:h.avg_cost;
-    const cost=h.avg_cost*h.shares;
-    const value=price*h.shares;
-    const pnl=value-cost;
-    const pnlPct=((pnl/cost)*100);
-    totalVal+=value;
-    totalCost+=cost;
-    return {...h,sig,price,cost,value,pnl,pnlPct};
+    const sig     = sigMap[h.ticker]||null;
+    const livePx  = PRICES[h.ticker];                      // real price if available
+    const price   = livePx?.price_usd ?? sig?.close ?? h.avg_cost;
+    const isLive  = !!livePx?.price_usd;
+    const changePct = livePx?.change_pct ?? null;
+    const cost    = h.avg_cost * h.shares;
+    const value   = price * h.shares;
+    const pnl     = value - cost;
+    const pnlPct  = (pnl / cost) * 100;
+    totalVal  += value;
+    totalCost += cost;
+    return { ...h, sig, price, isLive, changePct, cost, value, pnl, pnlPct };
   });
 
   const totalPnl=totalVal-totalCost;
@@ -722,10 +872,15 @@ function bootstrapPortfolio(){
       ?Array.from({length:5},(_,j)=>`<div class="dot ${j<(sig.buy_score||0)?"fb":""}"></div>`).join("")
       :"";
 
+    const todayChgPct = e.changePct;
+    const todayUp = todayChgPct != null ? todayChgPct >= 0 : null;
+
     return `<div class="pos-card ${isGain?"pos-gain":"pos-loss"}" onclick="openModal('${e.ticker}')">
       <div class="pos-top">
         <div>
-          <div class="pos-ticker">${e.ticker}</div>
+          <div class="pos-ticker">${e.ticker}
+            ${e.isLive ? `<span class="live-badge">LIVE</span>` : `<span class="stale-badge">SCAN</span>`}
+          </div>
           <div class="pos-name">${e.name}</div>
         </div>
         <div class="pos-sig-badge">
@@ -735,8 +890,13 @@ function bootstrapPortfolio(){
       </div>
       <div class="pos-price-row">
         <span class="pos-price">${fp(e.price)}</span>
-        <span class="pos-chg ${isGain?"up":"dn"}">${isGain?"+":""}${fc(e.pnlPct)}%</span>
+        <span class="pos-chg ${isGain?"up":"dn"}">${isGain?"+":""}${fc(e.pnlPct)}% P&amp;L</span>
       </div>
+      ${todayChgPct != null ? `
+      <div style="font-size:12px;color:${todayUp?"var(--green)":"var(--red)"};font-weight:600;margin-bottom:10px;">
+        Today: ${todayUp?"+":""}${fc(todayChgPct)}%
+        <span style="color:var(--text3);font-weight:400;font-size:11px;margin-left:4px;">vs yesterday's close</span>
+      </div>` : ""}
       <div class="pos-divider"></div>
       <div class="pos-stats">
         <div class="pos-stat"><div class="pos-stat-label">Shares</div><div class="pos-stat-val">${e.shares}</div></div>

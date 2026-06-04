@@ -2,32 +2,37 @@
   "updated_at": "2025-06-03T13:35:00Z",
   "holdings": [
     {
-      "ticker":     "WISE",
-      "name":       "Wise plc",
-      "shares":     100,
-      "avg_cost":   9.85,
-      "currency":   "USD"
+      "ticker":       "WISE",
+      "yahoo_symbol": "WISE.L",
+      "name":         "Wise plc (LSE)",
+      "shares":       100,
+      "avg_cost":     9.85,
+      "currency":     "GBp",
+      "note":         "London-listed; price shown in pence, converted to USD"
     },
     {
-      "ticker":     "AMZN",
-      "name":       "Amazon.com Inc",
-      "shares":     100,
-      "avg_cost":   182.50,
-      "currency":   "USD"
+      "ticker":       "AMZN",
+      "yahoo_symbol": "AMZN",
+      "name":         "Amazon.com Inc",
+      "shares":       100,
+      "avg_cost":     182.50,
+      "currency":     "USD"
     },
     {
-      "ticker":     "MOH",
-      "name":       "Molina Healthcare Inc",
-      "shares":     100,
-      "avg_cost":   299.40,
-      "currency":   "USD"
+      "ticker":       "MOH",
+      "yahoo_symbol": "MOH",
+      "name":         "Molina Healthcare Inc",
+      "shares":       100,
+      "avg_cost":     299.40,
+      "currency":     "USD"
     },
     {
-      "ticker":     "PLTR",
-      "name":       "Palantir Technologies",
-      "shares":     100,
-      "avg_cost":   24.80,
-      "currency":   "USD"
+      "ticker":       "PLTR",
+      "yahoo_symbol": "PLTR",
+      "name":         "Palantir Technologies",
+      "shares":       100,
+      "avg_cost":     24.80,
+      "currency":     "USD"
     }
   ]
 }
