@@ -1,0 +1,91 @@
+name: 📈 Millionaire Stocks — Trading Agent
+
+on:
+  # ──────────────────────────────────────────────────────────────
+  # Schedule: 09:35 ET = 13:35 UTC (EST, Nov–Mar)
+  #           09:35 ET = 13:35 UTC (EST) / 14:35 UTC (EDT, Mar–Nov)
+  # We run both cron expressions so the agent fires at 09:35 ET
+  # regardless of daylight saving time.
+  # ──────────────────────────────────────────────────────────────
+  schedule:
+    - cron: "35 13 * * 1-5"   # 09:35 ET (EST / winter, UTC-5)
+    - cron: "35 14 * * 1-5"   # 09:35 ET (EDT / summer, UTC-4) — remove whichever doesn't apply
+
+  # ── Allow manual trigger from GitHub Actions tab ───────────────
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (no real orders)"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      order_qty:
+        description: "Shares per trade"
+        required: false
+        default: "1"
+
+jobs:
+  trade:
+    name: Run S&P 500 Strategy Scanner
+    runs-on: ubuntu-latest
+    timeout-minutes: 60         # safety cap — scanner should finish well under this
+
+    steps:
+      # ── 1. Checkout repo ──────────────────────────────────────
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ───────────────────────────────────────
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install dependencies ───────────────────────────────
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── 4. Create logs directory ──────────────────────────────
+      - name: 📁 Prepare logs directory
+        run: mkdir -p logs
+
+      # ── 5. Run the trading agent ──────────────────────────────
+      - name: 🚀 Run Trading Agent
+        env:
+          ALPACA_API_KEY:      ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY:   ${{ secrets.ALPACA_SECRET_KEY }}
+          ALPACA_BASE_URL:     ${{ secrets.ALPACA_BASE_URL }}
+          ALPACA_ACCOUNT_NAME: ${{ secrets.ALPACA_ACCOUNT_NAME }}
+          # ── Strategy parameters (override via workflow_dispatch) ──
+          DRY_RUN:             ${{ github.event.inputs.dry_run || 'true' }}
+          ORDER_QTY:           ${{ github.event.inputs.order_qty || '1' }}
+          STOP_LOSS_PCT:       "0.05"     # 5% stop-loss
+          BUY_THRESHOLD:       "3"        # min 3/5 conditions for BUY
+          MIN_VOLUME:          "500000"   # liquidity filter
+          MAX_POSITIONS:       "20"       # max concurrent positions
+          RATE_LIMIT_SEC:      "0.35"     # seconds between API calls
+        run: |
+          python src/strategy.py
+
+      # ── 6. Upload log artifacts ───────────────────────────────
+      - name: 📊 Upload signal logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trading-logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 30
+
+      # ── 7. Notify on failure ──────────────────────────────────
+      - name: 🚨 Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Trading agent failed! Check logs above for details."
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Check artifacts for full log output."
