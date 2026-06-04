@@ -940,22 +940,46 @@ function sortedRows(arr){
 function renderCards(rows){
   $("cards-grid").style.display="";
   $("table-wrap").classList.remove("vis");
-  if(!rows.length){$("cards-grid").innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>No signals match your filter.</p></div>`;return;}
-  $("cards-grid").innerHTML=rows.map(r=>{
-    const ib=r.signal==="BUY";
-    const chg=r.sma_50&&r.close?((r.close-r.sma_50)/r.sma_50*100).toFixed(2):null;
-    const dots=ib?Array.from({length:5},(_,i)=>`<div class="dot ${i<(r.buy_score||0)?"fb":""}"></div>`).join(""):"";
-    const trigs=ib?(r.buy_triggers||[]).map(t=>`<span class="trig trig-buy">${t.replace(/_/g," ")}</span>`).join("")
-                   :(r.sell_triggers||[]).map(t=>`<span class="trig trig-sell">${t.replace(/_/g," ")}</span>`).join("");
+  if(!rows.length){
+    $("cards-grid").innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>No signals match your filter.</p></div>`;
+    return;
+  }
+
+  $("cards-grid").innerHTML = rows.map(r => {
+    const ib      = r.signal === "BUY";
+    const live    = PRICES[r.ticker];                    // live price entry
+    const price   = live?.price_usd ?? r.close;          // always prefer live
+    const isLive  = !!live?.price_usd;
+
+    // Today's real change % from Yahoo Finance; fall back to nothing
+    const chgPct  = live?.change_pct ?? null;
+    const chgUp   = chgPct != null ? chgPct >= 0 : null;
+    const chgHtml = chgPct != null
+      ? `<span class="card-change ${chgUp?"up":"dn"}">${chgUp?"+":""}${Number(chgPct).toFixed(2)}%</span>`
+      : "";
+
+    const dots  = ib ? Array.from({length:5},(_,i) =>
+      `<div class="dot ${i < (r.buy_score||0) ? "fb" : ""}"></div>`).join("") : "";
+
+    const trigs = ib
+      ? (r.buy_triggers||[]).map(t=>`<span class="trig trig-buy">${t.replace(/_/g," ")}</span>`).join("")
+      : (r.sell_triggers||[]).map(t=>`<span class="trig trig-sell">${t.replace(/_/g," ")}</span>`).join("");
+
     return `<div class="stock-card card-${ib?"buy":"sell"}" onclick="openModal('${r.ticker}')">
       <div class="card-glow"></div>
       <div class="card-row1">
-        <div><div class="card-ticker">${r.ticker}</div><div class="card-name">S&amp;P 500</div></div>
+        <div>
+          <div class="card-ticker">
+            ${r.ticker}
+            ${isLive ? `<span class="live-badge">LIVE</span>` : ""}
+          </div>
+          <div class="card-name">S&amp;P 500</div>
+        </div>
         <span class="card-signal sig-${ib?"buy":"sell"}">${r.signal}</span>
       </div>
       <div class="card-price-row">
-        <span class="card-price">${fp(r.close)}</span>
-        ${chg!==null?`<span class="card-change ${parseFloat(chg)>=0?"up":"dn"}">${parseFloat(chg)>=0?"+":""}${chg}%</span>`:""}
+        <span class="card-price">${fp(price)}</span>
+        ${chgHtml}
       </div>
       ${ib?`<div class="score-row"><span class="score-label">Score</span><div class="score-dots">${dots}</div><span style="font-size:10px;color:var(--text3);margin-left:2px;">${r.buy_score}/5</span></div>`:""}
       <div class="card-metrics">
@@ -972,14 +996,31 @@ function renderCards(rows){
 function renderTableView(rows){
   $("cards-grid").style.display="none";
   $("table-wrap").classList.add("vis");
-  if(!rows.length){$("table-body").innerHTML=`<tr><td colspan="9"><div class="empty"><div class="empty-icon">🔍</div><p>No signals.</p></div></td></tr>`;return;}
-  $("table-body").innerHTML=rows.map(r=>{
-    const ib=r.signal==="BUY";
+  if(!rows.length){
+    $("table-body").innerHTML=`<tr><td colspan="9"><div class="empty"><div class="empty-icon">🔍</div><p>No signals.</p></div></td></tr>`;
+    return;
+  }
+
+  $("table-body").innerHTML = rows.map(r => {
+    const ib    = r.signal === "BUY";
+    const live  = PRICES[r.ticker];
+    const price = live?.price_usd ?? r.close;
+    const chgPct = live?.change_pct ?? null;
+    const chgHtml = chgPct != null
+      ? `<span style="font-size:11px;font-weight:600;color:${chgPct>=0?"var(--green)":"var(--red)"}">${chgPct>=0?"+":""}${chgPct.toFixed(2)}%</span>`
+      : "";
+
     return `<tr onclick="openModal('${r.ticker}')" style="cursor:pointer">
-      <td class="t-ticker"><a href="https://finance.yahoo.com/quote/${r.ticker}" target="_blank" onclick="event.stopPropagation()">${r.ticker}</a></td>
+      <td class="t-ticker">
+        <a href="https://finance.yahoo.com/quote/${r.ticker}" target="_blank" onclick="event.stopPropagation()">${r.ticker}</a>
+        ${live?.price_usd ? `<span class="live-badge">LIVE</span>` : ""}
+      </td>
       <td><span class="t-sig sig-${ib?"buy":"sell"}">${r.signal}</span></td>
-      <td style="font-weight:600">${fp(r.close)}</td>
-      <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${ib?Math.round((r.buy_score/5)*100):0}%;background:${ib?"var(--green)":"var(--red)"}"></div></div><span style="font-size:11px;font-weight:600">${ib?r.buy_score+"/5":"—"}</span></div></td>
+      <td style="font-weight:700">${fp(price)} ${chgHtml}</td>
+      <td><div class="bar-cell">
+        <div class="bar-track"><div class="bar-fill" style="width:${ib?Math.round((r.buy_score/5)*100):0}%;background:${ib?"var(--green)":"var(--red)"}"></div></div>
+        <span style="font-size:11px;font-weight:600">${ib?r.buy_score+"/5":"—"}</span>
+      </div></td>
       <td class="${rsiCls(r.rsi||50)}" style="font-weight:600">${fc(r.rsi,1)}</td>
       <td>${fc(r.atr_pct)}%</td>
       <td>${fp(r.sma_50)}</td>
