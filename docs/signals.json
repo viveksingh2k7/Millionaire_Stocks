@@ -4,9 +4,9 @@
   "dry_run": true,
   "summary": {
     "total": 503,
-    "buy": 18,
-    "sell": 11,
-    "hold": 474,
+    "buy": 20,
+    "sell": 12,
+    "hold": 471,
     "errors": 0
   },
   "signals": [
@@ -28,6 +28,9 @@
     {"ticker":"SNOW","signal":"BUY","close":152.80,"rsi":28.4,"macd_diff":0.34,"sma_50":148.20,"sma_200":138.60,"bb_upper":168.00,"bb_lower":132.00,"atr_pct":3.2,"buy_score":3,"buy_triggers":["rsi_recovery","above_sma50","near_bb_lower"],"sell_triggers":[]},
     {"ticker":"NOW","signal":"BUY","close":748.60,"rsi":31.9,"macd_diff":1.55,"sma_50":728.40,"sma_200":672.10,"bb_upper":785.00,"bb_lower":695.00,"atr_pct":1.9,"buy_score":3,"buy_triggers":["rsi_recovery","above_sma50","golden_cross"],"sell_triggers":[]},
     {"ticker":"PANW","signal":"BUY","close":318.50,"rsi":30.6,"macd_diff":0.62,"sma_50":308.70,"sma_200":282.40,"bb_upper":338.00,"bb_lower":292.00,"atr_pct":2.1,"buy_score":3,"buy_triggers":["rsi_recovery","macd_cross_up","above_sma50"],"sell_triggers":[]},
+    {"ticker":"AMZN","signal":"BUY","close":192.80,"rsi":31.4,"macd_diff":0.42,"sma_50":186.50,"sma_200":168.20,"bb_upper":206.00,"bb_lower":174.00,"atr_pct":1.7,"buy_score":4,"buy_triggers":["rsi_recovery","macd_cross_up","above_sma50","golden_cross"],"sell_triggers":[]},
+    {"ticker":"PLTR","signal":"BUY","close":27.40,"rsi":29.2,"macd_diff":0.08,"sma_50":25.80,"sma_200":19.60,"bb_upper":31.00,"bb_lower":22.00,"atr_pct":4.2,"buy_score":4,"buy_triggers":["rsi_recovery","macd_cross_up","above_sma50","golden_cross"],"sell_triggers":[]},
+    {"ticker":"MOH","signal":"SELL","close":281.60,"rsi":72.4,"macd_diff":-0.88,"sma_50":296.20,"sma_200":318.40,"bb_upper":308.00,"bb_lower":262.00,"atr_pct":2.3,"buy_score":0,"buy_triggers":[],"sell_triggers":["rsi_overbought","death_cross","macd_cross_down"]},
     {"ticker":"INTC","signal":"SELL","close":31.20,"rsi":74.8,"macd_diff":-0.18,"sma_50":33.40,"sma_200":38.20,"bb_upper":35.00,"bb_lower":28.00,"atr_pct":2.8,"buy_score":0,"buy_triggers":[],"sell_triggers":["rsi_overbought","death_cross"]},
     {"ticker":"PFE","signal":"SELL","close":28.60,"rsi":71.2,"macd_diff":-0.22,"sma_50":30.10,"sma_200":34.80,"bb_upper":32.00,"bb_lower":26.00,"atr_pct":1.9,"buy_score":0,"buy_triggers":[],"sell_triggers":["rsi_overbought","death_cross","macd_cross_down"]},
     {"ticker":"BA","signal":"SELL","close":188.40,"rsi":72.6,"macd_diff":-0.45,"sma_50":195.20,"sma_200":210.40,"bb_upper":205.00,"bb_lower":172.00,"atr_pct":2.5,"buy_score":0,"buy_triggers":[],"sell_triggers":["rsi_overbought","death_cross"]},
