@@ -829,28 +829,25 @@ function startLiveClock() {
   }, 1000);
 }
 
-/* refreshPrices is defined above; reset countdown each call */
-const _wrapRefresh = refreshPrices;
-// Override so countdown resets on every refresh cycle
-// (refreshPrices already defined — just reset _nextRefresh inside the timer)
 
 
 /* ── Overview bootstrap ─────────────────────────────── */
 function bootstrapOverview(data){
-  const s=data.summary||{};
+  const s  = data.summary || {};
+  const ts = data.generated_at || null;   // ← was missing, caused ReferenceError
   // badge
   const b=$("mode-badge");
-  b.textContent=data.dry_run?"DRY RUN":"LIVE";
-  b.className="nav-badge "+(data.dry_run?"badge-dry":"badge-live");
-  // time
+  b.textContent = data.dry_run ? "DRY RUN" : "LIVE";
+  b.className   = "nav-badge " + (data.dry_run ? "badge-dry" : "badge-live");
+  // nav clock (live — updated every second by startLiveClock)
   $("nav-time").textContent = cstLabel(new Date());
-  // hero
-  $("h-total").textContent=s.total??"—";
-  $("h-buy").textContent  =s.buy??"—";
-  $("h-sell").textContent =s.sell??"—";
-  $("h-hold").textContent =(s.hold||0)+(s.errors||0);
-  $("h-date").textContent =data.scan_date||"—";
-  $("h-ago").textContent  =ts?timeAgo(ts):"—";
+  // hero stats
+  $("h-total").textContent = s.total   ?? "—";
+  $("h-buy").textContent   = s.buy     ?? "—";
+  $("h-sell").textContent  = s.sell    ?? "—";
+  $("h-hold").textContent  = (s.hold||0) + (s.errors||0);
+  $("h-date").textContent  = data.scan_date || "—";
+  $("h-ago").textContent   = ts ? timeAgo(ts) : "—";
   buildOvCharts(data);
   buildTopMovers();
 }
