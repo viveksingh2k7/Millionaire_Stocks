@@ -21,8 +21,10 @@ from alpaca_trade_api.rest import TimeFrame
 import ta
 
 # ─────────────────────────────────────────────
-# Logging Setup
+# Ensure logs directory exists before logging
 # ─────────────────────────────────────────────
+os.makedirs("logs", exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -33,14 +35,20 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# ─────────────────────────────────────────────
+# Signal threshold constants
+# ─────────────────────────────────────────────
+BB_LOWER_BUFFER = 1.015   # close <= bb_lower * this → near lower band
+BB_UPPER_BUFFER = 0.99    # close >= bb_upper * this → near upper band
+
 
 # ─────────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────────
 class Config:
-    API_KEY        = os.environ["ALPACA_API_KEY"]
-    SECRET_KEY     = os.environ["ALPACA_SECRET_KEY"]
-    BASE_URL       = os.environ["ALPACA_BASE_URL"]
+    API_KEY        = os.environ.get("ALPACA_API_KEY")    or sys.exit("ERROR: ALPACA_API_KEY is not set")
+    SECRET_KEY     = os.environ.get("ALPACA_SECRET_KEY") or sys.exit("ERROR: ALPACA_SECRET_KEY is not set")
+    BASE_URL       = os.environ.get("ALPACA_BASE_URL")   or sys.exit("ERROR: ALPACA_BASE_URL is not set")
     ACCOUNT_NAME   = os.environ.get("ALPACA_ACCOUNT_NAME", "default")
 
     DRY_RUN        = os.environ.get("DRY_RUN", "true").lower() == "true"
@@ -88,7 +96,8 @@ def get_sp500_tickers() -> list:
     """Fetch current S&P 500 components from Wikipedia."""
     try:
         url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        tables = pd.read_html(url)
+        html = requests.get(url, timeout=15).text
+        tables = pd.read_html(html)
         tickers = tables[0]["Symbol"].str.replace(".", "-", regex=False).tolist()
         log.info(f"📋 Loaded {len(tickers)} S&P 500 tickers from Wikipedia.")
         return tickers
@@ -115,7 +124,7 @@ def fetch_bars(api: tradeapi.REST, ticker: str, limit: int = 220) -> pd.DataFram
             ticker,
             TimeFrame.Day,
             limit=limit,
-            adjustment="raw",
+            adjustment="split",
         ).df
         bars.index = pd.to_datetime(bars.index)
         bars = bars[["open", "high", "low", "close", "volume"]].copy()
@@ -184,7 +193,7 @@ def generate_signal(df: pd.DataFrame, entry_price: float = None) -> tuple[str, d
     macd_cross_up = (prev["macd_diff"] < 0) and (latest["macd_diff"] >= 0)
     above_sma50   = latest["close"] > latest["sma_50"]
     golden_cross  = latest["sma_50"] > latest["sma_200"]
-    near_bb_lower = latest["close"] <= latest["bb_lower"] * 1.015
+    near_bb_lower = latest["close"] <= latest["bb_lower"] * BB_LOWER_BUFFER
 
     buy_conditions = {
         "rsi_recovery":  rsi_recovery,
@@ -199,7 +208,7 @@ def generate_signal(df: pd.DataFrame, entry_price: float = None) -> tuple[str, d
     rsi_overbought  = latest["rsi"] >= 70
     macd_cross_down = (prev["macd_diff"] > 0) and (latest["macd_diff"] <= 0)
     death_cross     = latest["sma_50"] < latest["sma_200"]
-    at_bb_upper     = latest["close"] >= latest["bb_upper"] * 0.99
+    at_bb_upper     = latest["close"] >= latest["bb_upper"] * BB_UPPER_BUFFER
     stop_loss       = (entry_price is not None) and \
                       (latest["close"] <= entry_price * (1 - Config.STOP_LOSS_PCT))
 
@@ -396,9 +405,7 @@ def run_scanner(api: tradeapi.REST):
 
                 place_order(api, ticker, signal)
 
-                if signal == "BUY":
-                    positions[ticker] = details["close"]
-                elif signal == "SELL" and ticker in positions:
+                if signal == "SELL" and ticker in positions:
                     del positions[ticker]
 
             time.sleep(Config.RATE_LIMIT_SEC)

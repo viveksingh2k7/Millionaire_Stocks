@@ -2,14 +2,15 @@ name: 📈 Millionaire Stocks — Trading Agent
 
 on:
   # ──────────────────────────────────────────────────────────────
-  # Schedule: 09:35 ET = 13:35 UTC (EST, Nov–Mar)
-  #           09:35 ET = 13:35 UTC (EST) / 14:35 UTC (EDT, Mar–Nov)
-  # We run both cron expressions so the agent fires at 09:35 ET
-  # regardless of daylight saving time.
+  # Both EST and EDT crons are active year-round so the agent always
+  # fires near 09:35 ET regardless of daylight saving time.
+  # The concurrency group below ensures only one run executes at a
+  # time — the second trigger is queued and skipped if one is in
+  # progress, preventing duplicate orders.
   # ──────────────────────────────────────────────────────────────
   schedule:
-    - cron: "35 13 * * 1-5"   # 09:35 ET (EST / winter, UTC-5)
-    - cron: "35 14 * * 1-5"   # 09:35 ET (EDT / summer, UTC-4) — remove whichever doesn't apply
+    - cron: "35 13 * * 1-5"   # 09:35 ET (EST, UTC-5, Nov–Mar)
+    - cron: "35 14 * * 1-5"   # 09:35 ET (EDT, UTC-4, Mar–Nov)
 
   # ── Allow manual trigger from GitHub Actions tab ───────────────
   workflow_dispatch:
@@ -26,6 +27,11 @@ on:
         description: "Shares per trade"
         required: false
         default: "1"
+
+# Prevent duplicate runs when both EST and EDT crons fire in the same window
+concurrency:
+  group: trading-agent
+  cancel-in-progress: false   # queue rather than cancel — avoids skipping legitimate runs
 
 jobs:
   trade:
