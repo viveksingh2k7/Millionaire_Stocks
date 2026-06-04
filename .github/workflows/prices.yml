@@ -19,11 +19,15 @@ jobs:
     name: Fetch real-time quotes
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write   # required to commit prices.json back to the repo
 
     steps:
       # ── 1. Checkout ────────────────────────────────────────────────
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # ── 2. Python ─────────────────────────────────────────────────
       - name: 🐍 Set up Python 3.11
