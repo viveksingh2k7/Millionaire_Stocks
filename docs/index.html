@@ -599,30 +599,47 @@ async function fetchStooq(sym) {
   } catch { return null; }
 }
 
-/* Fetch via Yahoo Finance v8/chart */
+/* Fetch via Yahoo Finance v8/chart — direct then via CORS proxy */
 async function fetchYahoo(sym) {
-  const enc = encodeURIComponent(sym);
+  const enc  = encodeURIComponent(sym);
+  const path = `/v8/finance/chart/${enc}?interval=1d&range=2d&includePrePost=false`;
+
+  const parseMeta = meta => {
+    if (!meta) return null;
+    const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
+    const prev  = meta.chartPreviousClose  || meta.previousClose;
+    if (!price) return null;
+    const chg    = prev ? price - prev       : null;
+    const chgPct = prev ? (chg / prev) * 100 : null;
+    return {
+      price:      +price.toFixed(4),
+      prev_close: prev   ? +prev.toFixed(4)   : null,
+      change:     chg    ? +chg.toFixed(4)    : null,
+      change_pct: chgPct ? +chgPct.toFixed(4) : null,
+      currency:   (meta.currency || "USD").toUpperCase(),
+    };
+  };
+
+  // 1 & 2: direct — query1 then query2
   for (const host of ["https://query1.finance.yahoo.com","https://query2.finance.yahoo.com"]) {
     try {
-      const url = `${host}/v8/finance/chart/${enc}?interval=1d&range=5d&includePrePost=false`;
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      const res = await fetch(host + path, { headers: { Accept: "application/json" } });
       if (!res.ok) continue;
-      const meta = (await res.json())?.chart?.result?.[0]?.meta;
-      if (!meta) continue;
-      const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
-      const prev  = meta.chartPreviousClose  || meta.previousClose;
-      if (!price) continue;
-      const chg    = prev ? price - prev       : null;
-      const chgPct = prev ? (chg / prev) * 100 : null;
-      return {
-        price:      +price.toFixed(4),
-        prev_close: prev   ? +prev.toFixed(4)   : null,
-        change:     chg    ? +chg.toFixed(4)    : null,
-        change_pct: chgPct ? +chgPct.toFixed(4) : null,
-        currency:   (meta.currency || "USD").toUpperCase(),
-      };
+      const q = parseMeta((await res.json())?.chart?.result?.[0]?.meta);
+      if (q) return q;
     } catch { continue; }
   }
+
+  // 3: CORS proxy (corsproxy.io adds Access-Control-Allow-Origin: * header)
+  try {
+    const proxyUrl = "https://corsproxy.io/?url=" + encodeURIComponent("https://query1.finance.yahoo.com" + path);
+    const res = await fetch(proxyUrl, { headers: { Accept: "application/json" } });
+    if (res.ok) {
+      const q = parseMeta((await res.json())?.chart?.result?.[0]?.meta);
+      if (q) return q;
+    }
+  } catch { /* ignore */ }
+
   return null;
 }
 
