@@ -475,10 +475,12 @@
     <img class="nav-logo" src="./icons/icon-192.png" alt="Nelumbus" width="34" height="34" style="border-radius:10px;object-fit:contain;"/>
     <div>
       <div class="nav-title">Millionaire Stocks</div>
-      <div class="nav-tagline">S&amp;P 500 Signal Scanner</div>
+      <div class="nav-tagline" id="nav-tagline">S&amp;P 500 Signal Scanner</div>
     </div>
   </a>
-  <div class="nav-tabs">
+
+  <!-- US market tabs (shown when S&P 500 active) -->
+  <div class="nav-tabs" id="nav-tabs-us">
     <button class="nav-tab tab-overview active" onclick="showPage('overview',this)">📊 Overview</button>
     <button class="nav-tab tab-buy"             onclick="showPage('overview',this,'BUY')">🟢 Buy Signals</button>
     <button class="nav-tab tab-sell"            onclick="showPage('overview',this,'SELL')">🔴 Sell Signals</button>
@@ -487,6 +489,22 @@
     <button class="nav-tab tab-analytics"       onclick="showPage('analytics',this)">📊 Analytics</button>
     <button class="nav-tab tab-watchlist"       onclick="showPage('watchlist',this)">👁️ Watchlist</button>
     <button class="nav-tab tab-settings"        onclick="showPage('settings',this)">⚙️ Settings</button>
+  </div>
+
+  <!-- India NSE tabs (shown when India NSE active) -->
+  <div class="nav-tabs" id="nav-tabs-india" style="display:none">
+    <button class="nav-tab active" onclick="indiaFilterAll()">🇮🇳 All Stocks</button>
+    <button class="nav-tab"        onclick="indiaFilterGain()">📈 Gainers</button>
+    <button class="nav-tab"        onclick="indiaFilterLose()">📉 Losers</button>
+    <button class="nav-tab"        onclick="showPage('settings',document.querySelector('.nav-tab'))">⚙️ Settings</button>
+  </div>
+
+  <!-- BSE tabs (shown when BSE active) -->
+  <div class="nav-tabs" id="nav-tabs-bse" style="display:none">
+    <button class="nav-tab active" onclick="bseFilterAll()">🇮🇳 All Sensex 30</button>
+    <button class="nav-tab"        onclick="bseFilterGain()">📈 Gainers</button>
+    <button class="nav-tab"        onclick="bseFilterLose()">📉 Losers</button>
+    <button class="nav-tab"        onclick="showPage('settings',document.querySelector('.nav-tab'))">⚙️ Settings</button>
   </div>
   <div class="nav-right">
     <!-- Market selector dropdown -->
@@ -2130,23 +2148,66 @@ let INDIA_PRICES   = {};    // ticker → {price, change, change_pct, currency}
 let INDIA_FILTER   = "ALL";
 let INDIA_LOADED   = false;
 
+/* ── Market context helpers ────────────────────────────── */
+let ACTIVE_MARKET = "us";   // "us" | "india" | "bse"
+
+function setMarketContext(val) {
+  ACTIVE_MARKET = val;
+
+  // Tab visibility
+  const usT    = document.getElementById("nav-tabs-us");
+  const indiaT = document.getElementById("nav-tabs-india");
+  const bseT   = document.getElementById("nav-tabs-bse");
+  const tl     = document.getElementById("nav-tagline");
+
+  if (val === "india") {
+    if(usT)    usT.style.display    = "none";
+    if(bseT)   bseT.style.display   = "none";
+    if(indiaT) indiaT.style.display = "";
+    if(tl)     tl.textContent       = "India NSE · NIFTY 100";
+  } else if (val === "bse") {
+    if(usT)    usT.style.display    = "none";
+    if(indiaT) indiaT.style.display = "none";
+    if(bseT)   bseT.style.display   = "";
+    if(tl)     tl.textContent       = "India BSE · Sensex 30";
+  } else {
+    if(indiaT) indiaT.style.display = "none";
+    if(bseT)   bseT.style.display   = "none";
+    if(usT)    usT.style.display    = "";
+    if(tl)     tl.textContent       = "S&P 500 Signal Scanner";
+  }
+
+  // Right sidebar price panel — show correct market stocks
+  renderStockPriceList();
+}
+
 /* Switch market dropdown handler */
 function switchMarket(val) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+  setMarketContext(val);
 
   if (val === "india") {
     document.getElementById("page-india").classList.add("active");
+    document.querySelector("#nav-tabs-india .nav-tab")?.classList.add("active");
     loadIndiaMarket();
   } else if (val === "bse") {
     document.getElementById("page-bse").classList.add("active");
+    document.querySelector("#nav-tabs-bse .nav-tab")?.classList.add("active");
     loadBSEMarket();
   } else {
-    // US S&P 500
     document.getElementById("page-overview").classList.add("active");
-    document.querySelectorAll(".nav-tab.tab-overview").forEach(t => t.classList.add("active"));
+    document.querySelector("#nav-tabs-us .tab-overview")?.classList.add("active");
   }
 }
+
+/* India tab helpers */
+function indiaFilterAll()  { INDIA_FILTER="ALL";  document.querySelectorAll("#nav-tabs-india .nav-tab").forEach((b,i)=>b.classList.toggle("active",i===0)); renderIndiaCards(); }
+function indiaFilterGain() { INDIA_FILTER="GAIN"; document.querySelectorAll("#nav-tabs-india .nav-tab").forEach((b,i)=>b.classList.toggle("active",i===1)); renderIndiaCards(); }
+function indiaFilterLose() { INDIA_FILTER="LOSE"; document.querySelectorAll("#nav-tabs-india .nav-tab").forEach((b,i)=>b.classList.toggle("active",i===2)); renderIndiaCards(); }
+function bseFilterAll()    { BSE_FILTER="ALL";    document.querySelectorAll("#nav-tabs-bse .nav-tab").forEach((b,i)=>b.classList.toggle("active",i===0)); renderBSECards(); }
+function bseFilterGain()   { BSE_FILTER="GAIN";   document.querySelectorAll("#nav-tabs-bse .nav-tab").forEach((b,i)=>b.classList.toggle("active",i===1)); renderBSECards(); }
+function bseFilterLose()   { BSE_FILTER="LOSE";   document.querySelectorAll("#nav-tabs-bse .nav-tab").forEach((b,i)=>b.classList.toggle("active",i===2)); renderBSECards(); }
 
 /* Load India stocks data + prices */
 async function loadIndiaMarket() {
@@ -2210,6 +2271,7 @@ async function loadIndiaMarket() {
   renderIndiaCards();
   renderIndiaPriceList();
   renderIndiaSectorChart();
+  renderStockPriceList();   // sync Overview right panel
 }
 
 /* Filter/sort and render India stock cards */
@@ -2439,6 +2501,7 @@ async function loadBSEMarket() {
   renderBSECards();
   renderBSEPriceList();
   renderBSESectorChart();
+  renderStockPriceList();   // sync Overview right panel
 }
 
 function renderBSECards() {
@@ -2804,9 +2867,68 @@ let _spFilter = "";
 function renderStockPriceList() {
   const list  = document.getElementById("stock-price-list");
   const count = document.getElementById("sp-count");
+  const panel = document.getElementById("stock-price-panel");
   if (!list) return;
 
-  // Sort: BUY first, then SELL, then rest; within group by abs(change_pct) desc
+  // ── Route to the correct market ────────────────────────
+  if (ACTIVE_MARKET === "india") {
+    // Show India NSE stocks in the sidebar panel
+    if(panel) {
+      panel.querySelector(".panel-header h3").textContent = "🇮🇳 India NSE Stocks";
+    }
+    const q = _spFilter.toLowerCase();
+    const rows = INDIA_STOCKS
+      .filter(s => !q || s.ticker.toLowerCase().includes(q) || s.name.toLowerCase().includes(q))
+      .sort((a,b) => (Math.abs(INDIA_PRICES[b.ticker]?.change_pct||0)) - (Math.abs(INDIA_PRICES[a.ticker]?.change_pct||0)));
+
+    if(count) count.textContent = `${rows.length} stocks`;
+    list.innerHTML = rows.map(s => {
+      const lp    = INDIA_PRICES[s.ticker];
+      const price = lp?.price;
+      const chg   = lp?.change_pct;
+      const isUp  = chg != null ? chg >= 0 : null;
+      return `<div class="sp-row" onclick="openIndiaModal('${s.ticker}')">
+        <div class="sp-badge" style="background:${isUp===null?"var(--text3)":isUp?"var(--green)":"var(--red)"}"></div>
+        <span class="sp-ticker">${s.ticker.replace(".NS","")}</span>
+        <span class="sp-price">${price!=null?"₹"+Number(price).toFixed(2):"—"}</span>
+        <span class="sp-chg" style="color:${isUp===null?"var(--text3)":isUp?"var(--green)":"var(--red)"}">${chg!=null?(isUp?"+":"")+chg.toFixed(2)+"%":"—"}</span>
+        <span class="sp-sig sp-sig-hold" style="background:rgba(255,153,0,.1);color:#FF9500">NSE</span>
+      </div>`;
+    }).join("");
+    return;
+  }
+
+  if (ACTIVE_MARKET === "bse") {
+    // Show BSE stocks in the sidebar panel
+    if(panel) {
+      panel.querySelector(".panel-header h3").textContent = "🇮🇳 BSE Sensex 30";
+    }
+    const q = _spFilter.toLowerCase();
+    const rows = BSE_STOCKS
+      .filter(s => !q || s.ticker.toLowerCase().includes(q) || s.name.toLowerCase().includes(q))
+      .sort((a,b) => (Math.abs(BSE_PRICES[b.ticker]?.change_pct||0)) - (Math.abs(BSE_PRICES[a.ticker]?.change_pct||0)));
+
+    if(count) count.textContent = `${rows.length} stocks`;
+    list.innerHTML = rows.map(s => {
+      const lp    = BSE_PRICES[s.ticker];
+      const price = lp?.price;
+      const chg   = lp?.change_pct;
+      const isUp  = chg != null ? chg >= 0 : null;
+      return `<div class="sp-row" onclick="openBSEModal('${s.ticker}')">
+        <div class="sp-badge" style="background:${isUp===null?"var(--text3)":isUp?"var(--green)":"var(--red)"}"></div>
+        <span class="sp-ticker">${s.ticker.replace(".BO","")}</span>
+        <span class="sp-price">${price!=null?"₹"+Number(price).toFixed(2):"—"}</span>
+        <span class="sp-chg" style="color:${isUp===null?"var(--text3)":isUp?"var(--green)":"var(--red)"}">${chg!=null?(isUp?"+":"")+chg.toFixed(2)+"%":"—"}</span>
+        <span class="sp-sig sp-sig-hold" style="background:rgba(255,153,0,.1);color:#FF9500">BSE</span>
+      </div>`;
+    }).join("");
+    return;
+  }
+
+  // ── Default: US S&P 500 ────────────────────────────────
+  if(panel) {
+    panel.querySelector(".panel-header h3").textContent = "All Stocks — Live Prices";
+  }
   const q = _spFilter.toLowerCase();
   const rows = [...ALL_SIG]
     .filter(r => !q || r.ticker.toLowerCase().includes(q))
@@ -2819,7 +2941,6 @@ function renderStockPriceList() {
     });
 
   if (count) count.textContent = `${rows.length} stocks`;
-
   if (!rows.length) {
     list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No matching tickers</div>`;
     return;
@@ -2836,7 +2957,6 @@ function renderStockPriceList() {
     const chgHtml = chgPct != null
       ? `<span class="sp-chg" style="color:${isUp?"var(--green)":"var(--red)"}">${isUp?"+":""}${chgPct.toFixed(2)}%</span>`
       : `<span class="sp-chg" style="color:var(--text3)">—</span>`;
-
     return `<div class="sp-row" onclick="openModal('${r.ticker}')">
       <div class="sp-badge" style="background:${dotColor};${r.signal==="BUY"?"box-shadow:0 0 5px var(--green-glow)":""}"></div>
       <span class="sp-ticker">${r.ticker}</span>
