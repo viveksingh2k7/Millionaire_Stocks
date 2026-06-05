@@ -635,6 +635,29 @@
       <!-- Position cards -->
       <div class="port-cards" id="port-cards"></div>
 
+      <!-- ── Portfolio vs S&P 500 growth chart ──────────────── -->
+      <div class="section-head" style="margin-bottom:12px">
+        <h2>📈 Portfolio Growth vs S&amp;P 500</h2>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <select id="growth-range" onchange="loadGrowthChart()"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);font-size:11px;font-family:inherit;padding:5px 10px;cursor:pointer;outline:none;">
+            <option value="1mo">1 Month</option>
+            <option value="3mo">3 Months</option>
+            <option value="6mo" selected>6 Months</option>
+            <option value="1y">1 Year</option>
+          </select>
+          <span id="growth-status" style="font-size:10px;color:var(--text3)"></span>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;position:relative;">
+        <div id="growth-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(17,19,24,.8);border-radius:var(--r);z-index:5;font-size:13px;color:var(--text3);">
+          ⏳ Fetching historical data…
+        </div>
+        <canvas id="chart-growth" height="90"></canvas>
+        <!-- Legend -->
+        <div style="display:flex;gap:20px;margin-top:12px;justify-content:center;flex-wrap:wrap;" id="growth-legend"></div>
+      </div>
+
       <!-- P&L Summary banner -->
       <div id="pnl-banner" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;">
         <div>
@@ -1153,6 +1176,176 @@ function buildPriceMap(quotes, holdings, fxRate) {
    Called every time the Portfolio tab is opened.
    Fetches ONLY the 4 portfolio tickers + GBPUSD=X so it is
    fast and immune to signal-ticker rate limiting.            */
+/* ═══════════════════════════════════════════════════════════
+   PORTFOLIO GROWTH vs S&P 500 — historical line chart
+   Fetches weekly OHLCV from Yahoo Finance for each holding + SPY,
+   computes equal-weighted portfolio % return, plots vs SPY.
+════════════════════════════════════════════════════════════ */
+
+async function fetchHistory(symbol, range) {
+  /* Returns [{date, close}] sorted ascending, or null on failure */
+  for (const host of ["https://query1.finance.yahoo.com","https://query2.finance.yahoo.com"]) {
+    try {
+      const url = `${host}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1wk&range=${range}&includePrePost=false`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) continue;
+      const j      = await res.json();
+      const result = j?.chart?.result?.[0];
+      if (!result) continue;
+      const ts     = result.timestamp || [];
+      const closes = result.indicators?.quote?.[0]?.close || [];
+      const data   = ts.map((t, i) => ({ date: new Date(t * 1000), close: closes[i] }))
+                       .filter(d => d.close != null && !isNaN(d.close));
+      if (data.length) return data;
+    } catch { continue; }
+  }
+  return null;
+}
+
+async function loadGrowthChart() {
+  const range    = document.getElementById("growth-range")?.value || "6mo";
+  const loading  = document.getElementById("growth-loading");
+  const statusEl = document.getElementById("growth-status");
+  if (loading)  loading.style.display = "flex";
+  if (statusEl) statusEl.textContent  = "Fetching…";
+
+  // Tickers to fetch: portfolio holdings + SPY benchmark
+  const portSymbols = PORTFOLIO.map(h => h.yahoo_symbol || h.ticker);
+  const allSymbols  = [...new Set(portSymbols)].filter(s => !s.endsWith(".L")); // skip LSE for simplicity
+  const allFetch    = [...allSymbols, "SPY"];
+
+  // Fetch all in parallel
+  const histories = await Promise.all(allFetch.map(s => fetchHistory(s, range)));
+  const histMap   = {};
+  allFetch.forEach((s, i) => { if (histories[i]) histMap[s] = histories[i]; });
+
+  const spyData = histMap["SPY"];
+  if (!spyData || spyData.length < 2) {
+    if (loading)  loading.style.display = "none";
+    if (statusEl) statusEl.textContent  = "⚠ Could not load data";
+    return;
+  }
+
+  // Find common date range: use SPY dates as the reference axis
+  const labels = spyData.map(d => d.date.toLocaleDateString("en-US",{month:"short",day:"numeric"}));
+
+  // SPY % return series (base = first point)
+  const spyBase   = spyData[0].close;
+  const spySeries = spyData.map(d => +((d.close / spyBase - 1) * 100).toFixed(2));
+
+  // Portfolio % return series (equal-weighted average of all fetched holdings)
+  const portSeries = spyData.map((spyPoint, i) => {
+    const rets = [];
+    allSymbols.forEach(sym => {
+      const h = histMap[sym];
+      if (!h || h.length < 2) return;
+      const base    = h[0].close;
+      const closest = h.reduce((prev, cur) =>
+        Math.abs(cur.date - spyPoint.date) < Math.abs(prev.date - spyPoint.date) ? cur : prev
+      );
+      rets.push((closest.close / base - 1) * 100);
+    });
+    return rets.length ? +( rets.reduce((a,b)=>a+b,0) / rets.length ).toFixed(2) : null;
+  });
+
+  // Build chart
+  if (charts["chart-growth"]) { charts["chart-growth"].destroy(); delete charts["chart-growth"]; }
+
+  const portFinal = portSeries.filter(v=>v!=null).at(-1) ?? 0;
+  const spyFinal  = spySeries.at(-1) ?? 0;
+  const portColor = portFinal >= 0 ? "#00c805" : "#ff5000";
+  const spyColor  = "#58a6ff";
+
+  charts["chart-growth"] = new Chart(document.getElementById("chart-growth"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "My Portfolio",
+          data:  portSeries,
+          borderColor:     portColor,
+          backgroundColor: portFinal >= 0 ? "rgba(0,200,5,.08)" : "rgba(255,80,0,.08)",
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          tension: 0.3,
+          fill: "origin",
+          spanGaps: true,
+        },
+        {
+          label: "S&P 500 (SPY)",
+          data:  spySeries,
+          borderColor:     spyColor,
+          backgroundColor: "rgba(88,166,255,.06)",
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          tension: 0.3,
+          fill: false,
+          borderDash: [5, 3],
+          spanGaps: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y != null ? (ctx.parsed.y >= 0 ? "+" : "") + ctx.parsed.y.toFixed(2) + "%" : "—"}`,
+          },
+          backgroundColor: "rgba(17,19,24,.95)",
+          borderColor:      "rgba(255,255,255,.1)",
+          borderWidth: 1,
+          titleColor: "#9ea3b0",
+          bodyColor:  "#f0f0f0",
+          padding: 10,
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: "rgba(255,255,255,.05)" },
+          ticks: { color: "#5c6070", font: { size: 10 }, maxTicksLimit: 8 },
+        },
+        y: {
+          grid: { color: "rgba(255,255,255,.05)" },
+          ticks: { color: "#5c6070", font: { size: 10 }, callback: v => (v >= 0 ? "+" : "") + v + "%" },
+          zero: true,
+        },
+      },
+    },
+  });
+
+  // Legend
+  const legend = document.getElementById("growth-legend");
+  if (legend) {
+    const diff    = portFinal - spyFinal;
+    const diffStr = (diff >= 0 ? "+" : "") + diff.toFixed(2) + "%";
+    const diffCol = diff >= 0 ? "var(--green)" : "var(--red)";
+    legend.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:3px;background:${portColor};border-radius:2px"></div>
+        <span style="font-size:12px;font-weight:700;color:${portColor}">My Portfolio</span>
+        <span style="font-size:12px;font-weight:800;color:${portColor}">${portFinal>=0?"+":""}${portFinal.toFixed(2)}%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:2px;background:${spyColor};border-radius:2px;border-top:2px dashed ${spyColor}"></div>
+        <span style="font-size:12px;font-weight:700;color:${spyColor}">S&amp;P 500 (SPY)</span>
+        <span style="font-size:12px;font-weight:800;color:${spyColor}">${spyFinal>=0?"+":""}${spyFinal.toFixed(2)}%</span>
+      </div>
+      <div style="font-size:12px;padding:3px 12px;border-radius:20px;background:${diff>=0?"var(--green-dim)":"var(--red-dim)"};color:${diffCol};font-weight:700">
+        ${diff>=0?"▲ Beating":"▼ Behind"} S&amp;P 500 by ${Math.abs(diff).toFixed(2)}%
+      </div>`;
+  }
+
+  if (loading)  loading.style.display = "none";
+  const loaded = allSymbols.filter(s => histMap[s]).length;
+  if (statusEl) statusEl.textContent = `${loaded}/${allSymbols.length} holdings loaded · ${range}`;
+}
+
 async function refreshPortfolioPrices() {
   if (!PORTFOLIO.length) return;
 
@@ -2489,7 +2682,7 @@ function showPage(page, btn, filter){
     renderOverview();
   }
   // Every time Portfolio tab opens → fetch fresh prices
-  if(page === "portfolio")  refreshPortfolioPrices();
+  if(page === "portfolio")  { refreshPortfolioPrices(); loadGrowthChart(); }
   if(page === "tradelog")   renderTradeLog();
   if(page === "analytics")  renderAnalytics();
   if(page === "watchlist")  renderWatchlist();
