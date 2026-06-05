@@ -421,6 +421,8 @@
 
 <!-- ════════ PWA INSTALL BANNERS ════════════════════════════════ -->
 <div id="install-banner" class="hidden">
+  <img src="./icons/icon-48.png" alt="Nelumbus" width="36" height="36"
+       style="border-radius:9px;flex-shrink:0;box-shadow:0 0 10px rgba(0,200,255,.4)"/>
   <p><strong>Install Millionaire Stocks</strong> — add to your home screen for instant access to live signals.</p>
   <button class="install-btn" onclick="promptInstall()">Install</button>
   <button class="install-dismiss" onclick="this.closest('#install-banner').classList.add('hidden')" aria-label="Dismiss">×</button>
@@ -463,6 +465,17 @@
   <!-- Hero -->
   <div class="hero">
     <div class="hero-inner">
+      <!-- Nelumbus brand row -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+        <img src="./icons/icon-192.png"
+             alt="Nelumbus"
+             width="56" height="56"
+             style="border-radius:14px;box-shadow:0 0 24px rgba(0,200,255,.35);flex-shrink:0;"/>
+        <div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;">Powered by Nelumbus Technologies</div>
+          <div style="font-size:13px;color:#00C8FF;font-weight:600;">AI · Fintech · Product Studio</div>
+        </div>
+      </div>
       <h1>Today's Market Signals</h1>
       <p>Automated RSI · MACD · Bollinger Bands · SMA across every S&amp;P 500 stock — updated each trading day at 09:35&nbsp;ET.</p>
       <div class="hero-stats">
@@ -727,8 +740,22 @@
 
 <!-- ════════ FOOTER ═══════════════════════════════════════════════ -->
 <footer>
+  <!-- Nelumbus branding -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+    <img src="./icons/icon-192.png" alt="Nelumbus" width="40" height="40"
+         style="border-radius:10px;box-shadow:0 0 14px rgba(0,200,255,.3);"/>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);">Millionaire Stocks</div>
+      <div style="font-size:11px;color:var(--text3);">Built by
+        <a href="https://nelumbustech.com" target="_blank"
+           style="color:#00C8FF;text-decoration:none;font-weight:600;">Nelumbus Technologies</a>
+        &nbsp;·&nbsp; AI · Fintech · Product Studio
+      </div>
+    </div>
+  </div>
   <p>⚠️ <strong>Not financial advice.</strong> Educational purposes only. Always do your own research.</p>
-  <div class="footer-links">
+  <div class="footer-links" style="margin-top:10px;">
+    <a href="https://nelumbustech.com" target="_blank" style="color:#00C8FF;">Nelumbus</a>
     <a href="https://github.com/viveksingh2k7/Millionaire_Stocks" target="_blank">GitHub</a>
     <a href="signals.json" target="_blank">Signals JSON</a>
     <a href="portfolio.json" target="_blank">Portfolio JSON</a>
