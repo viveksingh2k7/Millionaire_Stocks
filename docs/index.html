@@ -166,8 +166,48 @@
   /* ═══ LAYOUT ══════════════════════════════════════════════════════ */
   .layout{max-width:1240px;margin:0 auto;padding:24px 28px 60px;display:flex;gap:20px;}
   .col-main{flex:1;min-width:0;}
-  .col-side{width:310px;flex-shrink:0;}
+  .col-side{width:340px;flex-shrink:0;}
   @media(max-width:1000px){.col-side{display:none;}}
+
+  /* ── Stock price list (right sidebar) ─────────────────────── */
+  #stock-price-panel{
+    background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
+    overflow:hidden;position:sticky;top:calc(var(--nav-top-h) + var(--safe-t) + 12px);
+    max-height:calc(100vh - var(--nav-top-h) - var(--safe-t) - 24px);
+    display:flex;flex-direction:column;
+  }
+  #stock-price-panel .panel-header{
+    padding:12px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  #stock-price-panel .panel-header h3{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+  #stock-price-panel .panel-header span{font-size:10px;color:var(--text3);}
+  #stock-price-list{overflow-y:auto;flex:1;}
+  #stock-price-list::-webkit-scrollbar{width:3px;}
+  #stock-price-list::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px;}
+
+  .sp-row{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04);
+    cursor:pointer;transition:background var(--tr);
+  }
+  .sp-row:hover{background:rgba(255,255,255,.04);}
+  .sp-row:last-child{border-bottom:none;}
+  .sp-badge{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .sp-ticker{font-size:13px;font-weight:700;width:52px;flex-shrink:0;}
+  .sp-price{font-size:13px;font-weight:700;flex:1;text-align:right;}
+  .sp-chg{font-size:11px;font-weight:600;width:58px;text-align:right;flex-shrink:0;}
+  .sp-sig{font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;flex-shrink:0;letter-spacing:.3px;}
+  .sp-sig-buy{background:var(--green-dim);color:var(--green);}
+  .sp-sig-sell{background:var(--red-dim);color:var(--red);}
+  .sp-sig-hold{background:var(--bg3);color:var(--text3);}
+
+  /* Panel search */
+  #sp-search{
+    width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);
+    color:var(--text);font-size:12px;padding:8px 14px;outline:none;font-family:inherit;
+  }
+  #sp-search::placeholder{color:var(--text3);}
   @media(max-width:640px){.layout{padding:16px 14px 48px;}}
 
   /* ═══ SECTION HEADER ══════════════════════════════════════════════ */
@@ -532,24 +572,33 @@
       <p id="row-count" style="text-align:right;color:var(--text3);font-size:11px;margin-top:8px;"></p>
     </div>
 
-    <!-- Sidebar -->
+    <!-- Right sidebar — live stock prices panel -->
     <div class="col-side">
-      <div class="sidebar-box"><h3>Signal Breakdown</h3><canvas id="chart-donut" height="170"></canvas></div>
-      <div class="sidebar-box"><h3>Buy Score Distribution</h3><canvas id="chart-scores" height="130"></canvas></div>
-      <div class="sidebar-box">
-        <h3>Top Buy Picks</h3>
-        <div id="top-movers"></div>
-      </div>
-      <div class="sidebar-box">
-        <h3>Indicator Legend</h3>
-        <div class="ind-list">
-          <div class="ind-row"><div class="ind-dot" style="background:var(--green)"></div><div class="ind-name">RSI Recovery</div><div class="ind-val">RSI &lt;30→≥30</div></div>
-          <div class="ind-row"><div class="ind-dot" style="background:#58a6ff"></div><div class="ind-name">MACD Cross Up</div><div class="ind-val">Diff &lt;0→≥0</div></div>
-          <div class="ind-row"><div class="ind-dot" style="background:var(--gold)"></div><div class="ind-name">Above SMA-50</div><div class="ind-val">Close &gt; SMA-50</div></div>
-          <div class="ind-row"><div class="ind-dot" style="background:#8b9bff"></div><div class="ind-name">Golden Cross</div><div class="ind-val">SMA-50 &gt; SMA-200</div></div>
-          <div class="ind-row"><div class="ind-dot" style="background:var(--text3)"></div><div class="ind-name">Near BB Lower</div><div class="ind-val">Close ≤ BB- ×1.015</div></div>
+
+      <!-- Compact charts row -->
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <div class="sidebar-box" style="flex:1;padding:12px;">
+          <h3 style="font-size:10px;margin-bottom:8px;">Signal Breakdown</h3>
+          <canvas id="chart-donut" height="110"></canvas>
+        </div>
+        <div class="sidebar-box" style="flex:1;padding:12px;">
+          <h3 style="font-size:10px;margin-bottom:8px;">Score Distribution</h3>
+          <canvas id="chart-scores" height="110"></canvas>
         </div>
       </div>
+
+      <!-- ALL STOCKS price panel (sticky, scrollable) -->
+      <div id="stock-price-panel">
+        <div class="panel-header">
+          <h3>All Stocks — Live Prices</h3>
+          <span id="sp-count">—</span>
+        </div>
+        <input id="sp-search" type="search" placeholder="🔍  Search ticker…" autocomplete="off"/>
+        <div id="stock-price-list">
+          <!-- populated by renderStockPriceList() -->
+        </div>
+      </div>
+
     </div>
   </div>
 </div><!-- /page-overview -->
@@ -1951,6 +2000,55 @@ function buildTopMovers(){
     </div>`).join("");
 }
 
+/* ── Stock price list — right sidebar ────────────────── */
+let _spFilter = "";
+
+function renderStockPriceList() {
+  const list  = document.getElementById("stock-price-list");
+  const count = document.getElementById("sp-count");
+  if (!list) return;
+
+  // Sort: BUY first, then SELL, then rest; within group by abs(change_pct) desc
+  const q = _spFilter.toLowerCase();
+  const rows = [...ALL_SIG]
+    .filter(r => !q || r.ticker.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const order = {BUY:0, SELL:1, HOLD:2};
+      if (order[a.signal] !== order[b.signal]) return order[a.signal] - order[b.signal];
+      const ca = Math.abs(PRICES[a.ticker]?.change_pct || 0);
+      const cb = Math.abs(PRICES[b.ticker]?.change_pct || 0);
+      return cb - ca;
+    });
+
+  if (count) count.textContent = `${rows.length} stocks`;
+
+  if (!rows.length) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No matching tickers</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(r => {
+    const lp      = PRICES[r.ticker];
+    const price   = lp?.price_usd ?? r.close;
+    const chgPct  = lp?.change_pct ?? null;
+    const isLive  = !!lp?.price_usd;
+    const isUp    = chgPct != null ? chgPct >= 0 : null;
+    const sigCls  = r.signal==="BUY" ? "sp-sig-buy" : r.signal==="SELL" ? "sp-sig-sell" : "sp-sig-hold";
+    const dotColor= r.signal==="BUY" ? "var(--green)" : r.signal==="SELL" ? "var(--red)" : "var(--text3)";
+    const chgHtml = chgPct != null
+      ? `<span class="sp-chg" style="color:${isUp?"var(--green)":"var(--red)"}">${isUp?"+":""}${chgPct.toFixed(2)}%</span>`
+      : `<span class="sp-chg" style="color:var(--text3)">—</span>`;
+
+    return `<div class="sp-row" onclick="openModal('${r.ticker}')">
+      <div class="sp-badge" style="background:${dotColor};${r.signal==="BUY"?"box-shadow:0 0 5px var(--green-glow)":""}"></div>
+      <span class="sp-ticker">${r.ticker}</span>
+      <span class="sp-price" style="color:${isLive?"var(--text)":"var(--text2)"}">${fp(price)}</span>
+      ${chgHtml}
+      <span class="sp-sig ${sigCls}">${r.signal}</span>
+    </div>`;
+  }).join("");
+}
+
 /* ── Render overview ────────────────────────────────── */
 function renderOverview(){
   const rows=sortedRows(filteredRows());
@@ -1958,6 +2056,7 @@ function renderOverview(){
   $("count-pill").textContent=rows.length;
   if(curView==="cards") renderCards(rows);
   else                  renderTableView(rows);
+  renderStockPriceList();   // ← always keep the right panel in sync
 }
 
 function filteredRows(){
@@ -2409,6 +2508,13 @@ document.querySelectorAll(".seg-btn").forEach(btn=>{
 });
 $("search").addEventListener("input",renderOverview);
 function handleSort(){ curSort=$("sort-sel").value; renderOverview(); }
+
+// Sidebar stock search
+const spSearchEl = document.getElementById("sp-search");
+if(spSearchEl) spSearchEl.addEventListener("input", e => {
+  _spFilter = e.target.value.trim();
+  renderStockPriceList();
+});
 function setView(v){
   curView=v;
   $("view-cards").classList.toggle("active",v==="cards");
