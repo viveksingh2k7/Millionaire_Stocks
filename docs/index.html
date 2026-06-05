@@ -557,104 +557,92 @@ const pct = (n,d=100) => (n*100/d).toFixed(1)+"%";
 const COLORS = ["#00c805","#6770e7","#f5a623","#a855f7"];
 
 /* ═══════════════════════════════════════════════════════════════
-   LIVE PRICE ENGINE  v5  —  parallel fetchOne, no batching
-   Each ticker fetched independently via Yahoo Finance v8/chart.
-   Promise.allSettled means one failure never blocks others.
-   All ~35 tickers complete in ~1-2 s inside the browser.
+   LIVE PRICE ENGINE  v6
+   Primary:  Stooq.com  — free, CORS-open, no API key, no blocking
+   Fallback: Yahoo Finance v8/chart  (query1 → query2)
+   All tickers fetched in parallel via Promise.allSettled.
 ════════════════════════════════════════════════════════════════ */
 
-const YF1 = "https://query1.finance.yahoo.com";
-const YF2 = "https://query2.finance.yahoo.com";
-
-/* ── Parse Yahoo Finance chart meta into a quote object ── */
-function parseChartMeta(meta) {
-  if (!meta) return null;
-  const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
-  const prev  = meta.chartPreviousClose  || meta.previousClose;
-  if (!price) return null;
-  const chg    = prev ? price - prev       : null;
-  const chgPct = prev ? (chg / prev) * 100 : null;
-  return {
-    price:      +price.toFixed(4),
-    prev_close: prev   ? +prev.toFixed(4)   : null,
-    change:     chg    ? +chg.toFixed(4)    : null,
-    change_pct: chgPct ? +chgPct.toFixed(4) : null,
-    currency:   (meta.currency || "USD").toUpperCase(),
-  };
+/* Convert dashboard ticker → Stooq symbol
+   US stocks: NVDA → nvda.us  |  LSE: WISE.L → wise.uk          */
+function toStooq(sym) {
+  if (sym === "GBPUSD=X") return "gbp/usd";          // FX pair
+  if (sym.endsWith(".L"))  return sym.replace(".L","").toLowerCase() + ".uk";
+  return sym.toLowerCase() + ".us";
 }
 
-/* ── Parse Yahoo Finance v7/quote result ─────────────────── */
-function parseQuoteResult(q) {
-  if (!q?.regularMarketPrice) return null;
-  const price = q.regularMarketPrice;
-  const prev  = q.regularMarketPreviousClose;
-  const chg   = q.regularMarketChange;
-  const chgPct = q.regularMarketChangePercent;
-  return {
-    price:      +price.toFixed(4),
-    prev_close: prev   ? +prev.toFixed(4)   : null,
-    change:     chg    ? +chg.toFixed(4)    : null,
-    change_pct: chgPct ? +chgPct.toFixed(4) : null,
-    currency:   (q.currency || "USD").toUpperCase(),
-  };
+/* Fetch via Stooq — returns {price, prev_close, change, change_pct} */
+async function fetchStooq(sym) {
+  try {
+    const s   = toStooq(sym);
+    const url = `https://stooq.com/q/l/?s=${s}&f=sd2l1c1p2&e=json`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const q    = data?.symbols?.[0];
+    if (!q || !q.Clsng || q.Clsng === "N/D") return null;
+
+    // Stooq fields: Clsng = close, Chng = change, %Chng = change pct
+    const price  = parseFloat(q.Clsng);
+    const chg    = q.Chng    ? parseFloat(q.Chng)    : null;
+    const chgPct = q["%Chng"]? parseFloat(q["%Chng"]): null;
+    const prev   = chg != null ? price - chg : null;
+    if (!price || isNaN(price)) return null;
+
+    return {
+      price:      +price.toFixed(4),
+      prev_close: prev   ? +prev.toFixed(4)   : null,
+      change:     chg    ? +chg.toFixed(4)    : null,
+      change_pct: chgPct ? +chgPct.toFixed(4) : null,
+      currency:   sym.endsWith(".L") ? "GBP" : "USD",
+    };
+  } catch { return null; }
 }
 
-/* Fetch ONE ticker — tries 4 different endpoints in order   */
-async function fetchOne(sym) {
+/* Fetch via Yahoo Finance v8/chart */
+async function fetchYahoo(sym) {
   const enc = encodeURIComponent(sym);
-
-  // Endpoints tried in priority order
-  const attempts = [
-    // 1. v8/chart on query1
-    async () => {
-      const r = await fetch(`${YF1}/v8/finance/chart/${enc}?interval=1d&range=5d&includePrePost=false`,
-        { headers: { Accept: "application/json" } });
-      if (!r.ok) return null;
-      return parseChartMeta((await r.json())?.chart?.result?.[0]?.meta);
-    },
-    // 2. v8/chart on query2
-    async () => {
-      const r = await fetch(`${YF2}/v8/finance/chart/${enc}?interval=1d&range=5d&includePrePost=false`,
-        { headers: { Accept: "application/json" } });
-      if (!r.ok) return null;
-      return parseChartMeta((await r.json())?.chart?.result?.[0]?.meta);
-    },
-    // 3. v7/quote on query1 (individual — avoids batch CORS issues)
-    async () => {
-      const r = await fetch(`${YF1}/v7/finance/quote?symbols=${enc}`,
-        { headers: { Accept: "application/json" } });
-      if (!r.ok) return null;
-      return parseQuoteResult((await r.json())?.quoteResponse?.result?.[0]);
-    },
-    // 4. v7/quote on query2
-    async () => {
-      const r = await fetch(`${YF2}/v7/finance/quote?symbols=${enc}`,
-        { headers: { Accept: "application/json" } });
-      if (!r.ok) return null;
-      return parseQuoteResult((await r.json())?.quoteResponse?.result?.[0]);
-    },
-  ];
-
-  for (const attempt of attempts) {
+  for (const host of ["https://query1.finance.yahoo.com","https://query2.finance.yahoo.com"]) {
     try {
-      const result = await attempt();
-      if (result) return result;
+      const url = `${host}/v8/finance/chart/${enc}?interval=1d&range=5d&includePrePost=false`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) continue;
+      const meta = (await res.json())?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
+      const prev  = meta.chartPreviousClose  || meta.previousClose;
+      if (!price) continue;
+      const chg    = prev ? price - prev       : null;
+      const chgPct = prev ? (chg / prev) * 100 : null;
+      return {
+        price:      +price.toFixed(4),
+        prev_close: prev   ? +prev.toFixed(4)   : null,
+        change:     chg    ? +chg.toFixed(4)    : null,
+        change_pct: chgPct ? +chgPct.toFixed(4) : null,
+        currency:   (meta.currency || "USD").toUpperCase(),
+      };
     } catch { continue; }
   }
-
-  console.warn(`⚠ fetchOne(${sym}): all 4 endpoints failed`);
   return null;
 }
 
-/* Fetch ALL symbols in parallel — every ticker is independent */
+/* Fetch ONE ticker: Stooq first, Yahoo Finance as fallback */
+async function fetchOne(sym) {
+  const result = await fetchStooq(sym) ?? await fetchYahoo(sym);
+  if (!result) console.warn(`⚠ fetchOne(${sym}): all sources failed`);
+  return result;
+}
+
+/* Fetch ALL symbols in parallel */
 async function fetchAllPrices(symbols) {
   const settled = await Promise.allSettled(symbols.map(s => fetchOne(s)));
   const result  = {};
   settled.forEach((r, i) => {
     if (r.status === "fulfilled" && r.value) result[symbols[i]] = r.value;
   });
-  const n = Object.keys(result).length;
-  console.log(`📊 fetchAllPrices: ${n}/${symbols.length} loaded${n < symbols.length ? " — missing: " + symbols.filter(s => !result[s]).join(", ") : ""}`);
+  const n    = Object.keys(result).length;
+  const miss = symbols.filter(s => !result[s]);
+  console.log(`📊 Prices: ${n}/${symbols.length} loaded${miss.length ? " | missing: "+miss.join(", ") : " ✅"}`);
   return result;
 }
 
