@@ -135,8 +135,6 @@
   .badge-live{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,200,5,.3);}
   .badge-dry{background:rgba(245,166,35,.12);color:var(--gold);border:1px solid rgba(245,166,35,.3);}
   .nav-time{font-size:11px;color:var(--text3);}
-  .nav-gh{width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;color:var(--text2);text-decoration:none;font-size:14px;transition:var(--tr);}
-  .nav-gh:hover{color:var(--text);}
   @media(max-width:640px){.nav-tabs .nav-tab:not(.active){display:none;}.nav-time{display:none;}}
 
   /* ═══ PAGES ═══════════════════════════════════════════════════════ */
@@ -493,7 +491,6 @@
   <div class="nav-right">
     <span id="mode-badge" class="nav-badge badge-dry">DRY RUN</span>
     <span class="nav-time" id="nav-time">—</span>
-    <a class="nav-gh" href="https://github.com/viveksingh2k7/Millionaire_Stocks" target="_blank">⌥</a>
   </div>
 </nav>
 
@@ -903,7 +900,7 @@
   <div class="port-hero" style="background:linear-gradient(135deg,#0a0d14 0%,#0a0b0d 100%);">
     <div class="port-hero-inner">
       <h1>⚙️ Settings &amp; Configuration</h1>
-      <p>Current strategy parameters · GitHub Actions setup · About this app</p>
+      <p>Current strategy parameters · About this app</p>
     </div>
   </div>
   <div class="port-layout">
@@ -920,12 +917,6 @@
           </tr></thead>
           <tbody id="settings-params-tbody"></tbody>
         </table>
-      </div>
-
-      <!-- GitHub Setup Guide -->
-      <div class="section-head" style="margin-bottom:14px"><h2>GitHub Actions Setup</h2></div>
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;">
-        <div id="settings-setup-steps" style="display:flex;flex-direction:column;gap:12px;"></div>
       </div>
 
       <!-- Audit Findings -->
@@ -945,8 +936,7 @@
           Built by Nelumbus Technologies ↗
         </a>
         <div style="margin-top:14px;font-size:10px;color:var(--text3);line-height:1.6;">
-          AI · Fintech · Product Studio<br/>
-          <a href="https://github.com/viveksingh2k7/Millionaire_Stocks" target="_blank" style="color:var(--text3);">View Source on GitHub ↗</a>
+          AI · Fintech · Product Studio
         </div>
       </div>
       <div class="sidebar-box">
@@ -999,7 +989,6 @@
   <p>⚠️ <strong>Not financial advice.</strong> Educational purposes only. Always do your own research.</p>
   <div class="footer-links" style="margin-top:10px;">
     <a href="https://nelumbustech.com" target="_blank" style="color:#00C8FF;">Nelumbus</a>
-    <a href="https://github.com/viveksingh2k7/Millionaire_Stocks" target="_blank">GitHub</a>
     <a href="signals.json" target="_blank">Signals JSON</a>
     <a href="portfolio.json" target="_blank">Portfolio JSON</a>
   </div>
@@ -1948,23 +1937,6 @@ function renderSettings() {
   }
 
   // Setup steps
-  const ss = document.getElementById("settings-setup-steps");
-  if(ss) {
-    const steps = [
-      ["1","Add Alpaca API Keys","GitHub → Settings → Secrets and variables → Actions","→ Add ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_BASE_URL","var(--blue)"],
-      ["2","Enable GitHub Pages","Settings → Pages → Source: main branch → /docs folder","→ Site live at viveksingh2k7.github.io/Millionaire_Stocks/","var(--green)"],
-      ["3","Switch to Live Trading","In trading_agent.yml set DRY_RUN = false","→ Real orders will execute at 09:35 ET","var(--gold)"],
-      ["4","Monitor Runs","Actions → trading_agent.yml → latest run → logs","→ Check signals.json committed after each scan","var(--purple)"],
-    ];
-    ss.innerHTML = steps.map(([n,t,s,d,c])=>`<div style="display:flex;gap:14px;padding:12px;background:var(--bg3);border-radius:var(--rs);">
-      <div style="width:28px;height:28px;border-radius:50%;background:${c};color:#000;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${n}</div>
-      <div><div style="font-size:13px;font-weight:700;margin-bottom:3px">${t}</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:2px">${s}</div>
-        <div style="font-size:11px;color:${c}">${d}</div>
-      </div>
-    </div>`).join("");
-  }
-
   const findings = document.getElementById("audit-findings");
   if(!findings) return;
 
@@ -1973,12 +1945,12 @@ function renderSettings() {
     {sev:"✅","label":"Fixed","text":"bootstrapOverview() null-check for data.generated_at added","color":"var(--green)"},
     {sev:"✅","label":"Fixed","text":"PLTR baseline price corrected from $27.40 to $141.70","color":"var(--green)"},
     {sev:"⚠️","label":"Monitor","text":"PLTR avg_cost in portfolio.json is $24.80 (actual entry) vs trade_log entry at $141.70 (post-run capture). P&L is correct — this is expected.","color":"var(--gold)"},
-    {sev:"🔴","label":"TODO","text":"trading_agent.yml: both EST/EDT cron lines are active — may cause double-runs during DST transitions. Add concurrency group.","color":"var(--red)"},
-    {sev:"🔴","label":"TODO","text":"Price fetcher (prices.json): GitHub Actions IPs are blocked by Yahoo Finance — all prices come back null. Browser-side fetch is the active fallback.","color":"var(--red)"},
+    {sev:"🔴","label":"TODO","text":"Trading agent cron: both EST/EDT lines are active — may cause double-runs during DST transitions.","color":"var(--red)"},
+    {sev:"🔴","label":"TODO","text":"Price fetcher: server IPs are blocked by Yahoo Finance — all prices come back null. Browser-side fetch is the active fallback.","color":"var(--red)"},
     {sev:"⚠️","label":"TODO","text":"No position sizing by dollar amount. All orders use ORDER_QTY=1 share regardless of price ($24 PLTR vs $627 META is very different).","color":"var(--gold)"},
     {sev:"⚠️","label":"TODO","text":"No market-regime filter (VIX check). During high-volatility markets (VIX>30), BUY signals should be suppressed.","color":"var(--gold)"},
     {sev:"ℹ️","label":"Info","text":"signals.json uses estimated prices as baseline — live prices override via browser fetch within 2–3 seconds of page load.","color":"var(--blue)"},
-    {sev:"ℹ️","label":"Info","text":"Strategy runs in DRY_RUN mode — no real orders. Set ALPACA keys + DRY_RUN=false in GitHub Secrets to enable live trading.","color":"var(--blue)"},
+    {sev:"ℹ️","label":"Info","text":"Strategy runs in DRY_RUN mode — no real orders. Set ALPACA keys and switch DRY_RUN=false in workflow settings to enable live trading.","color":"var(--blue)"},
   ];
 
   findings.innerHTML = issues.map(({sev,label,text,color}) => `
