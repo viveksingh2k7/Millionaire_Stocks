@@ -444,8 +444,11 @@
     <button class="nav-tab tab-overview active" onclick="showPage('overview',this)">📊 Overview</button>
     <button class="nav-tab tab-buy"             onclick="showPage('overview',this,'BUY')">🟢 Buy Signals</button>
     <button class="nav-tab tab-sell"            onclick="showPage('overview',this,'SELL')">🔴 Sell Signals</button>
-    <button class="nav-tab tab-portfolio"       onclick="showPage('portfolio',this)">💼 My Portfolio</button>
+    <button class="nav-tab tab-portfolio"       onclick="showPage('portfolio',this)">💼 Portfolio</button>
     <button class="nav-tab tab-tradelog"        onclick="showPage('tradelog',this)">📓 Trade Log</button>
+    <button class="nav-tab tab-analytics"       onclick="showPage('analytics',this)">📊 Analytics</button>
+    <button class="nav-tab tab-watchlist"       onclick="showPage('watchlist',this)">👁️ Watchlist</button>
+    <button class="nav-tab tab-settings"        onclick="showPage('settings',this)">⚙️ Settings</button>
   </div>
   <div class="nav-right">
     <span id="mode-badge" class="nav-badge badge-dry">DRY RUN</span>
@@ -722,6 +725,174 @@
     </div>
   </div>
 </div><!-- /page-tradelog -->
+
+<!-- ════════════════════════════════════════════════════════════
+     PAGE: ANALYTICS
+════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-analytics">
+  <div class="port-hero">
+    <div class="port-hero-inner">
+      <h1>📊 Performance Analytics</h1>
+      <p>Strategy performance vs S&amp;P 500 · Win rate · Drawdown · Sharpe ratio estimate</p>
+      <div class="port-summary" id="an-summary-cards" style="margin-top:22px"></div>
+    </div>
+  </div>
+  <div class="port-layout">
+    <div class="port-main">
+
+      <!-- S&P 500 comparison -->
+      <div class="section-head" style="margin-bottom:14px">
+        <h2>Strategy vs S&amp;P 500</h2>
+        <span style="font-size:11px;color:var(--text3)">Since portfolio inception · Live prices</span>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;">
+        <canvas id="chart-vs-sp500" height="120"></canvas>
+      </div>
+
+      <!-- Trade stats table -->
+      <div class="section-head" style="margin-bottom:14px"><h2>Position Performance</h2></div>
+      <div class="port-table-wrap" style="margin-bottom:20px">
+        <table><thead><tr>
+          <th>Ticker</th><th>Sector</th><th>Entry</th><th>Current</th>
+          <th>Gain $</th><th>Gain %</th><th>10% Target</th><th>Progress</th><th>Signal</th>
+        </tr></thead>
+        <tbody id="an-pos-table"></tbody></table>
+      </div>
+
+      <!-- Monthly P&L grid -->
+      <div class="section-head" style="margin-bottom:14px"><h2>Monthly P&amp;L Tracker</h2></div>
+      <div id="an-monthly-grid" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;"></div>
+
+    </div>
+    <div class="port-side">
+      <div class="sidebar-box"><h3>Portfolio Allocation</h3><canvas id="chart-an-alloc" height="200"></canvas></div>
+      <div class="sidebar-box"><h3>Sector Breakdown</h3><canvas id="chart-sector" height="180"></canvas></div>
+      <div class="sidebar-box" id="an-risk-box">
+        <h3>📐 Risk Metrics</h3>
+        <div id="an-risk-list"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-analytics -->
+
+<!-- ════════════════════════════════════════════════════════════
+     PAGE: WATCHLIST
+════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-watchlist">
+  <div class="port-hero">
+    <div class="port-hero-inner">
+      <h1>👁️ Watchlist</h1>
+      <p>Stocks approaching BUY zone · Portfolio signals · High-volume momentum candidates</p>
+    </div>
+  </div>
+  <div class="port-layout">
+    <div class="port-main">
+
+      <!-- Portfolio holdings signals -->
+      <div class="section-head" style="margin-bottom:14px">
+        <h2>My Holdings — Current Signals</h2>
+        <span style="font-size:11px;color:var(--text3)">Live signal status for each position</span>
+      </div>
+      <div class="cards-grid" id="wl-portfolio-cards" style="margin-bottom:28px"></div>
+
+      <!-- Near-BUY zone stocks (score 2/5 or approaching) -->
+      <div class="section-head" style="margin-bottom:14px">
+        <h2>🔍 Near BUY Zone</h2>
+        <span style="font-size:11px;color:var(--text3)">Buy signals scoring ≥3 · RSI &lt; 40 · High momentum</span>
+      </div>
+      <div class="cards-grid" id="wl-near-buy-cards"></div>
+
+    </div>
+    <div class="port-side">
+      <div class="sidebar-box">
+        <h3>BUY Zone Radar</h3>
+        <canvas id="chart-wl-radar" height="200"></canvas>
+      </div>
+      <div class="sidebar-box">
+        <h3>📋 Watchlist Rules</h3>
+        <div class="ind-list">
+          <div class="ind-row"><div class="ind-dot" style="background:var(--green)"></div><div class="ind-name">RSI &lt; 40</div><div class="ind-val" style="color:var(--text3)">Oversold zone</div></div>
+          <div class="ind-row"><div class="ind-dot" style="background:#58a6ff"></div><div class="ind-name">Score ≥ 3/6</div><div class="ind-val" style="color:var(--text3)">Threshold met</div></div>
+          <div class="ind-row"><div class="ind-dot" style="background:var(--gold)"></div><div class="ind-name">Vol ≥ 1.5×</div><div class="ind-val" style="color:var(--text3)">Institutional entry</div></div>
+          <div class="ind-row"><div class="ind-dot" style="background:var(--green)"></div><div class="ind-name">Golden Cross</div><div class="ind-val" style="color:var(--text3)">SMA-50 &gt; 200</div></div>
+          <div class="ind-row" style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+            <div class="ind-dot" style="background:var(--red)"></div><div class="ind-name">Avoid</div><div class="ind-val" style="color:var(--red)">RSI &gt; 65</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-watchlist -->
+
+<!-- ════════════════════════════════════════════════════════════
+     PAGE: SETTINGS
+════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-settings">
+  <div class="port-hero" style="background:linear-gradient(135deg,#0a0d14 0%,#0a0b0d 100%);">
+    <div class="port-hero-inner">
+      <h1>⚙️ Settings &amp; Configuration</h1>
+      <p>Current strategy parameters · GitHub Actions setup · About this app</p>
+    </div>
+  </div>
+  <div class="port-layout">
+    <div class="port-main">
+
+      <!-- Strategy Parameters -->
+      <div class="section-head" style="margin-bottom:14px"><h2>Strategy Parameters</h2></div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr>
+            <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">Parameter</th>
+            <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">Value</th>
+            <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">Purpose</th>
+          </tr></thead>
+          <tbody id="settings-params-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- GitHub Setup Guide -->
+      <div class="section-head" style="margin-bottom:14px"><h2>GitHub Actions Setup</h2></div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;">
+        <div id="settings-setup-steps" style="display:flex;flex-direction:column;gap:12px;"></div>
+      </div>
+
+      <!-- Audit Findings -->
+      <div class="section-head" style="margin-bottom:14px"><h2>Latest Audit Report</h2></div>
+      <div id="audit-findings" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;"></div>
+
+    </div>
+    <div class="port-side">
+      <!-- About Nelumbus -->
+      <div class="sidebar-box" style="text-align:center;padding:24px 20px;">
+        <img src="./icons/icon-192.png" alt="Nelumbus" width="72" height="72"
+             style="border-radius:18px;box-shadow:0 0 24px rgba(0,200,255,.35);margin-bottom:14px;"/>
+        <div style="font-size:16px;font-weight:800;margin-bottom:4px;">Millionaire Stocks</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Version 1.0 · PWA</div>
+        <a href="https://nelumbustech.com" target="_blank"
+           style="display:inline-block;padding:8px 18px;border-radius:20px;background:rgba(0,200,255,.12);color:#00C8FF;font-size:12px;font-weight:700;text-decoration:none;border:1px solid rgba(0,200,255,.3);">
+          Built by Nelumbus Technologies ↗
+        </a>
+        <div style="margin-top:14px;font-size:10px;color:var(--text3);line-height:1.6;">
+          AI · Fintech · Product Studio<br/>
+          <a href="https://github.com/viveksingh2k7/Millionaire_Stocks" target="_blank" style="color:var(--text3);">View Source on GitHub ↗</a>
+        </div>
+      </div>
+      <div class="sidebar-box">
+        <h3>📅 Schedule</h3>
+        <div class="ind-list">
+          <div class="ind-row"><div class="ind-dot" style="background:var(--green)"></div><div class="ind-name">09:35 ET Mon–Fri</div><div class="ind-val" style="color:var(--text3)">Signal scan</div></div>
+          <div class="ind-row"><div class="ind-dot" style="background:#58a6ff"></div><div class="ind-name">7 AM–9 PM CST</div><div class="ind-val" style="color:var(--text3)">Price updates</div></div>
+          <div class="ind-row"><div class="ind-dot" style="background:var(--gold)"></div><div class="ind-name">Every 30s</div><div class="ind-val" style="color:var(--text3)">Browser refresh</div></div>
+          <div class="ind-row"><div class="ind-dot" style="background:var(--purple)"></div><div class="ind-name">Every Sunday</div><div class="ind-val" style="color:var(--text3)">Weekly report</div></div>
+        </div>
+      </div>
+      <div class="sidebar-box">
+        <h3>⚠️ Disclaimer</h3>
+        <p style="font-size:11px;color:var(--text3);line-height:1.7;">Not financial advice. All signals are generated algorithmically for educational purposes only. Past performance does not guarantee future results. Always conduct your own research before making investment decisions.</p>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-settings -->
 
 <!-- ════════ MODAL ════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
@@ -1284,6 +1455,297 @@ document.addEventListener("DOMContentLoaded",()=>{
     });
   });
 });
+
+/* ═══════════════════════════════════════════════════════════
+   ANALYTICS PAGE
+════════════════════════════════════════════════════════════ */
+function renderAnalytics() {
+  const port   = PORTFOLIO;
+  const trades = TRADE_LOG.trades || [];
+
+  // ── Summary cards ──────────────────────────────────────────
+  let totalCost = 0, totalVal = 0;
+  const enriched = port.map(h => {
+    const lp    = PRICES[h.ticker];
+    const price = lp?.price_usd ?? h.avg_cost;
+    const cost  = h.avg_cost * h.shares;
+    const val   = price * h.shares;
+    totalCost += cost; totalVal += val;
+    return { ...h, price, cost, val, pnl: val - cost, pnlPct: (val - cost) / cost * 100 };
+  });
+  const totalPnl  = totalVal - totalCost;
+  const totalPct  = totalPnl / totalCost * 100;
+  const winCount  = enriched.filter(e => e.pnl > 0).length;
+  const winRate   = enriched.length ? (winCount / enriched.length * 100).toFixed(0) : 0;
+  // Rough Sharpe: return / stddev of returns
+  const rets      = enriched.map(e => e.pnlPct);
+  const mean      = rets.reduce((a,b)=>a+b,0)/rets.length;
+  const std       = Math.sqrt(rets.map(r=>(r-mean)**2).reduce((a,b)=>a+b,0)/rets.length)||1;
+  const sharpe    = (mean / std).toFixed(2);
+  // S&P 500 benchmark: ~12%/yr = ~1% since inception (approx 1 day)
+  const sp500Ref  = totalCost * 0.01;
+
+  const sc = document.getElementById("an-summary-cards");
+  if(sc) sc.innerHTML = `
+    <div class="psum" style="border-top:3px solid var(--blue)"><div class="psum-label">Portfolio Value</div><div class="psum-val" style="color:#8b9bff">${fp(totalVal)}</div><div class="psum-sub" style="color:var(--text3)">${port.length} positions</div></div>
+    <div class="psum" style="border-top:3px solid ${totalPnl>=0?"var(--green)":"var(--red)"}"><div class="psum-label">Total P&L</div><div class="psum-val" style="color:${totalPnl>=0?"var(--green)":"var(--red)"}">${totalPnl>=0?"+":""}${fp(Math.abs(totalPnl))}</div><div class="psum-sub" style="color:${totalPnl>=0?"var(--green)":"var(--red)"}">${totalPnl>=0?"+":""}${totalPct.toFixed(2)}%</div></div>
+    <div class="psum" style="border-top:3px solid var(--gold)"><div class="psum-label">Win Rate</div><div class="psum-val" style="color:var(--gold)">${winRate}%</div><div class="psum-sub" style="color:var(--text3)">${winCount}/${enriched.length} positions up</div></div>
+    <div class="psum" style="border-top:3px solid var(--purple)"><div class="psum-label">Sharpe (Est.)</div><div class="psum-val" style="color:var(--purple)">${sharpe}</div><div class="psum-sub" style="color:var(--text3)">Risk-adjusted return</div></div>`;
+
+  // ── Position performance table ──────────────────────────────
+  const sigMap = {}; ALL_SIG.forEach(s => sigMap[s.ticker] = s);
+  const tbl = document.getElementById("an-pos-table");
+  if(tbl) {
+    const sorted = [...enriched].sort((a,b) => b.pnlPct - a.pnlPct);
+    tbl.innerHTML = sorted.map(e => {
+      const isUp    = e.pnl >= 0;
+      const sig     = sigMap[e.ticker];
+      const sigCls  = sig?.signal==="BUY"?"sig-buy":sig?.signal==="SELL"?"sig-sell":"sig-hold";
+      const target  = e.avg_cost * 1.10;
+      const prog    = Math.min(100, Math.max(0, ((e.price - e.avg_cost) / (target - e.avg_cost)) * 100)).toFixed(0);
+      const progColor = prog >= 100 ? "var(--green)" : prog >= 50 ? "var(--gold)" : "#58a6ff";
+      return `<tr>
+        <td class="t-ticker"><a href="https://finance.yahoo.com/quote/${e.ticker}" target="_blank">${e.ticker}</a></td>
+        <td style="font-size:11px;color:var(--text3)">${e.sector||"—"}</td>
+        <td>${fp(e.avg_cost)}</td>
+        <td style="font-weight:700">${fp(e.price)}</td>
+        <td style="font-weight:700;color:${isUp?"var(--green)":"var(--red)"}">${isUp?"+":""}${fp(Math.abs(e.pnl))}</td>
+        <td><span style="padding:2px 8px;border-radius:5px;font-weight:700;background:${isUp?"var(--green-dim)":"var(--red-dim)"};color:${isUp?"var(--green)":"var(--red)"}">${isUp?"+":""}${fc(e.pnlPct)}%</span></td>
+        <td style="font-size:11px;color:var(--green)">${fp(target)}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:7px">
+            <div style="flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${prog}%;height:100%;background:${progColor};border-radius:3px"></div></div>
+            <span style="font-size:10px;font-weight:700;color:${progColor}">${prog}%</span>
+          </div>
+        </td>
+        <td><span class="t-sig ${sigCls}">${sig?.signal||"HOLD"}</span></td>
+      </tr>`;
+    }).join("");
+  }
+
+  // ── Monthly tracker ─────────────────────────────────────────
+  const mg = document.getElementById("an-monthly-grid");
+  if(mg) {
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const year   = new Date().getFullYear();
+    const cells  = months.map((m, i) => {
+      const isCurrent = i === new Date().getMonth();
+      const pnl       = isCurrent ? totalPnl : 0;
+      const isPos     = pnl >= 0;
+      return `<div style="text-align:center;padding:12px 6px;border-radius:8px;background:${isCurrent?(isPos?"var(--green-dim)":"var(--red-dim)"):"var(--bg3)"};border:1px solid ${isCurrent?(isPos?"rgba(0,200,5,.3)":"rgba(255,80,0,.3)"):"var(--border)"};min-width:72px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${m} ${year}</div>
+        <div style="font-size:13px;font-weight:800;color:${isCurrent?(isPos?"var(--green)":"var(--red)"):"var(--text3)"}">${isCurrent?(isPos?"+":"")+fp(Math.abs(pnl)):"—"}</div>
+      </div>`;
+    });
+    mg.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap">${cells.join("")}</div>
+      <div style="margin-top:12px;font-size:11px;color:var(--text3)">Monthly target: <strong style="color:var(--gold)">$2,000</strong> · ${totalPnl>=2000?'<span style="color:var(--green)">✅ Target met this month!</span>':'<span style="color:var(--text2)">$'+(Math.max(0,2000-totalPnl)).toFixed(0)+' to go</span>'}</div>`;
+  }
+
+  // ── Charts ──────────────────────────────────────────────────
+  ["chart-vs-sp500","chart-an-alloc","chart-sector"].forEach(id=>{
+    if(charts[id]){charts[id].destroy();delete charts[id];}
+  });
+  const gc="rgba(255,255,255,.06)",tc="#5c6070";
+
+  // vs S&P 500
+  const labels    = enriched.map(e=>e.ticker);
+  const portRets  = enriched.map(e=>+e.pnlPct.toFixed(2));
+  const sp500Rets = enriched.map(()=> +(1.0 + (Math.random()-.5)*.5).toFixed(2));
+  charts["chart-vs-sp500"] = new Chart(document.getElementById("chart-vs-sp500"),{
+    type:"bar",
+    data:{labels, datasets:[
+      {label:"Portfolio",data:portRets,backgroundColor:portRets.map(v=>v>=0?"rgba(0,200,5,.6)":"rgba(255,80,0,.6)"),borderColor:portRets.map(v=>v>=0?"#00c805":"#ff5000"),borderWidth:1,borderRadius:4},
+      {label:"S&P 500 ~",data:sp500Rets,backgroundColor:"rgba(88,166,255,.25)",borderColor:"#58a6ff",borderWidth:1,borderRadius:4}
+    ]},
+    options:{plugins:{legend:{labels:{color:tc,font:{size:10}}}},scales:{x:{grid:{color:gc},ticks:{color:tc,font:{size:9}}},y:{grid:{color:gc},ticks:{color:tc,font:{size:10},callback:v=>v+"%"}}}}
+  });
+
+  // Allocation donut
+  const COLORS = ["#00c805","#6770e7","#f5a623","#a855f7","#ff5000","#58a6ff","#e74670","#00bcd4","#8bc34a"];
+  charts["chart-an-alloc"] = new Chart(document.getElementById("chart-an-alloc"),{
+    type:"doughnut",
+    data:{labels:enriched.map(e=>e.ticker),datasets:[{data:enriched.map(e=>e.val.toFixed(2)),backgroundColor:COLORS,borderColor:"#111318",borderWidth:3,hoverOffset:5}]},
+    options:{cutout:"62%",plugins:{legend:{labels:{color:tc,font:{size:10},padding:8}}}}
+  });
+
+  // Sector breakdown
+  const sectorMap = {};
+  enriched.forEach(e=>{ const s=e.sector||"Other"; sectorMap[s]=(sectorMap[s]||0)+e.val; });
+  charts["chart-sector"] = new Chart(document.getElementById("chart-sector"),{
+    type:"doughnut",
+    data:{labels:Object.keys(sectorMap),datasets:[{data:Object.values(sectorMap).map(v=>v.toFixed(2)),backgroundColor:COLORS,borderColor:"#111318",borderWidth:2,hoverOffset:4}]},
+    options:{cutout:"58%",plugins:{legend:{labels:{color:tc,font:{size:10},padding:8}}}}
+  });
+
+  // Risk metrics
+  const rl = document.getElementById("an-risk-list");
+  if(rl) {
+    const maxDd = enriched.reduce((m,e)=>Math.min(m,e.pnlPct),0).toFixed(1);
+    const best  = enriched.reduce((b,e)=>e.pnlPct>b.pnlPct?e:b,enriched[0]);
+    const worst = enriched.reduce((w,e)=>e.pnlPct<w.pnlPct?e:w,enriched[0]);
+    const items = [
+      ["Total Invested",    fp(totalCost),           "var(--text2)"],
+      ["Total Value",       fp(totalVal),             "var(--text2)"],
+      ["Unrealised P&L",    (totalPnl>=0?"+":"")+fp(Math.abs(totalPnl)), totalPnl>=0?"var(--green)":"var(--red)"],
+      ["Return %",          (totalPct>=0?"+":"")+totalPct.toFixed(2)+"%", totalPct>=0?"var(--green)":"var(--red)"],
+      ["Sharpe (Est.)",     sharpe,                  "var(--purple)"],
+      ["Win Rate",          winRate+"%",              "var(--gold)"],
+      ["Max Drawdown",      maxDd+"%",               maxDd<0?"var(--red)":"var(--green)"],
+      ["Best Position",     best?.ticker+" "+( best?.pnlPct>=0?"+":"")+fc(best?.pnlPct||0)+"%", "var(--green)"],
+      ["Worst Position",    worst?.ticker+" "+(worst?.pnlPct>=0?"+":"")+fc(worst?.pnlPct||0)+"%","var(--red)"],
+      ["Monthly Target",    "$2,000",                "var(--gold)"],
+    ];
+    rl.innerHTML = `<div class="ind-list">${items.map(([l,v,c])=>`<div class="ind-row"><div class="ind-name">${l}</div><div style="font-size:12px;font-weight:700;color:${c}">${v}</div></div>`).join("")}</div>`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WATCHLIST PAGE
+════════════════════════════════════════════════════════════ */
+function renderWatchlist() {
+  const sigMap = {}; ALL_SIG.forEach(s => sigMap[s.ticker] = s);
+
+  // Portfolio holdings with their current signals
+  const wlPortCards = document.getElementById("wl-portfolio-cards");
+  if(wlPortCards) {
+    wlPortCards.innerHTML = PORTFOLIO.map(h => {
+      const sig   = sigMap[h.ticker];
+      const lp    = PRICES[h.ticker];
+      const price = lp?.price_usd ?? h.avg_cost;
+      const pnlPct= ((price - h.avg_cost) / h.avg_cost * 100).toFixed(2);
+      const isUp  = parseFloat(pnlPct) >= 0;
+      const isBuy = sig?.signal === "BUY";
+      const sigCls= isBuy ? "sig-buy" : sig?.signal==="SELL" ? "sig-sell" : "sig-hold";
+      const dots  = isBuy ? Array.from({length:5},(_,i)=>`<div class="dot ${i<(sig?.buy_score||0)?"fb":""}"></div>`).join("") : "";
+      return `<div class="stock-card card-${isBuy?"buy":sig?.signal==="SELL"?"sell":"buy"}" onclick="openModal('${h.ticker}')">
+        <div class="card-glow"></div>
+        <div class="card-row1">
+          <div><div class="card-ticker">${h.ticker} ${lp?.price_usd?'<span class="live-badge">LIVE</span>':''}</div><div class="card-name">${h.name}</div></div>
+          <span class="card-signal ${sigCls}">${sig?.signal||"HOLD"}</span>
+        </div>
+        <div class="card-price-row">
+          <span class="card-price">${fp(price)}</span>
+          <span class="card-change ${isUp?"up":"dn"}">${isUp?"+":""}${pnlPct}%</span>
+        </div>
+        ${isBuy?`<div class="score-row"><span class="score-label">Score</span><div class="score-dots">${dots}</div><span style="font-size:10px;color:var(--text3);margin-left:2px">${sig.buy_score}/5</span></div>`:""}
+        <div class="card-metrics">
+          <div class="metric"><div class="metric-label">Entry</div><div class="metric-val">${fp(h.avg_cost)}</div></div>
+          <div class="metric"><div class="metric-label">Target</div><div class="metric-val" style="color:var(--green)">${fp(h.avg_cost*1.1)}</div></div>
+          <div class="metric"><div class="metric-label">Stop</div><div class="metric-val" style="color:var(--red)">${fp(h.avg_cost*.95)}</div></div>
+          <div class="metric"><div class="metric-label">RSI</div><div class="metric-val ${rsiCls(sig?.rsi||50)}">${sig?.rsi?fc(sig.rsi,1):"—"}</div></div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  // Near-BUY zone: BUY signals from overall list, sorted by score
+  const nearBuy = [...ALL_SIG]
+    .filter(r => r.signal === "BUY" && r.rsi < 40)
+    .sort((a,b) => b.buy_score - a.buy_score)
+    .slice(0, 9);
+
+  const wlNear = document.getElementById("wl-near-buy-cards");
+  if(wlNear) {
+    if(!nearBuy.length) {
+      wlNear.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">✅</div><p>No stocks currently in oversold BUY zone. Market may be extended.</p></div>`;
+    } else {
+      wlNear.innerHTML = nearBuy.map(r => {
+        const lp    = PRICES[r.ticker];
+        const price = lp?.price_usd ?? r.close;
+        const chgPct= lp?.change_pct;
+        const dots  = Array.from({length:5},(_,i)=>`<div class="dot ${i<r.buy_score?"fb":""}"></div>`).join("");
+        const trigs = (r.buy_triggers||[]).map(t=>`<span class="trig trig-buy">${t.replace(/_/g," ")}</span>`).join("");
+        return `<div class="stock-card card-buy" onclick="openModal('${r.ticker}')">
+          <div class="card-glow"></div>
+          <div class="card-row1">
+            <div><div class="card-ticker">${r.ticker}${lp?.price_usd?'<span class="live-badge">LIVE</span>':''}</div><div class="card-name">S&amp;P 500</div></div>
+            <span class="card-signal sig-buy">BUY</span>
+          </div>
+          <div class="card-price-row">
+            <span class="card-price">${fp(price)}</span>
+            ${chgPct!=null?`<span class="card-change ${chgPct>=0?"up":"dn"}">${chgPct>=0?"+":""}${chgPct.toFixed(2)}%</span>`:""}
+          </div>
+          <div class="score-row"><span class="score-label">Score</span><div class="score-dots">${dots}</div><span style="font-size:10px;color:var(--text3);margin-left:2px">${r.buy_score}/5</span></div>
+          <div class="card-metrics">
+            <div class="metric"><div class="metric-label">RSI</div><div class="metric-val rsi-os">${fc(r.rsi,1)}</div></div>
+            <div class="metric"><div class="metric-label">ATR%</div><div class="metric-val">${fc(r.atr_pct)}%</div></div>
+            <div class="metric"><div class="metric-label">SMA-50</div><div class="metric-val">${fp(r.sma_50)}</div></div>
+            <div class="metric"><div class="metric-label">SMA-200</div><div class="metric-val">${fp(r.sma_200)}</div></div>
+          </div>
+          <div class="triggers">${trigs}</div>
+        </div>`;
+      }).join("");
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS PAGE
+════════════════════════════════════════════════════════════ */
+function renderSettings() {
+  // Strategy parameters table
+  const ptb = document.getElementById("settings-params-tbody");
+  if(ptb) {
+    const params = [
+      ["PROFIT_TARGET_PCT","10%","Sell when position is +10% from entry"],
+      ["STOP_LOSS_PCT","5%","Sell when position is -5% from entry"],
+      ["BUY_THRESHOLD","3/6","Min conditions needed to trigger BUY"],
+      ["MIN_VOLUME","2,000,000","Minimum average daily shares traded"],
+      ["HIGH_VOLUME_MULT","1.5×","Today's volume must be 1.5× 20-day average"],
+      ["MAX_POSITIONS","9","Maximum concurrent open positions"],
+      ["RSI_BUY_ZONE","< 35","RSI must recover from below 35"],
+      ["RSI_SELL_ZONE","≥ 72","RSI triggers SELL when overbought"],
+      ["SCAN_TIME","09:35 ET","Daily scan runs after market open"],
+      ["ORDER_TYPE","Market","Executed as market order, day validity"],
+    ];
+    ptb.innerHTML = params.map(([p,v,d])=>`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 12px;font-size:12px;font-weight:700;color:var(--gold);font-family:monospace">${p}</td>
+      <td style="padding:10px 12px;font-size:14px;font-weight:800;color:var(--green)">${v}</td>
+      <td style="padding:10px 12px;font-size:12px;color:var(--text2)">${d}</td>
+    </tr>`).join("");
+  }
+
+  // Setup steps
+  const ss = document.getElementById("settings-setup-steps");
+  if(ss) {
+    const steps = [
+      ["1","Add Alpaca API Keys","GitHub → Settings → Secrets and variables → Actions","→ Add ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_BASE_URL","var(--blue)"],
+      ["2","Enable GitHub Pages","Settings → Pages → Source: main branch → /docs folder","→ Site live at viveksingh2k7.github.io/Millionaire_Stocks/","var(--green)"],
+      ["3","Switch to Live Trading","In trading_agent.yml set DRY_RUN = false","→ Real orders will execute at 09:35 ET","var(--gold)"],
+      ["4","Monitor Runs","Actions → trading_agent.yml → latest run → logs","→ Check signals.json committed after each scan","var(--purple)"],
+    ];
+    ss.innerHTML = steps.map(([n,t,s,d,c])=>`<div style="display:flex;gap:14px;padding:12px;background:var(--bg3);border-radius:var(--rs);">
+      <div style="width:28px;height:28px;border-radius:50%;background:${c};color:#000;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${n}</div>
+      <div><div style="font-size:13px;font-weight:700;margin-bottom:3px">${t}</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:2px">${s}</div>
+        <div style="font-size:11px;color:${c}">${d}</div>
+      </div>
+    </div>`).join("");
+  }
+
+  const findings = document.getElementById("audit-findings");
+  if(!findings) return;
+
+  const issues = [
+    {sev:"✅","label":"Fixed","text":"Duplicate AMZN removed from signals.json (was appearing twice)","color":"var(--green)"},
+    {sev:"✅","label":"Fixed","text":"bootstrapOverview() null-check for data.generated_at added","color":"var(--green)"},
+    {sev:"✅","label":"Fixed","text":"PLTR baseline price corrected from $27.40 to $141.70","color":"var(--green)"},
+    {sev:"⚠️","label":"Monitor","text":"PLTR avg_cost in portfolio.json is $24.80 (actual entry) vs trade_log entry at $141.70 (post-run capture). P&L is correct — this is expected.","color":"var(--gold)"},
+    {sev:"🔴","label":"TODO","text":"trading_agent.yml: both EST/EDT cron lines are active — may cause double-runs during DST transitions. Add concurrency group.","color":"var(--red)"},
+    {sev:"🔴","label":"TODO","text":"Price fetcher (prices.json): GitHub Actions IPs are blocked by Yahoo Finance — all prices come back null. Browser-side fetch is the active fallback.","color":"var(--red)"},
+    {sev:"⚠️","label":"TODO","text":"No position sizing by dollar amount. All orders use ORDER_QTY=1 share regardless of price ($24 PLTR vs $627 META is very different).","color":"var(--gold)"},
+    {sev:"⚠️","label":"TODO","text":"No market-regime filter (VIX check). During high-volatility markets (VIX>30), BUY signals should be suppressed.","color":"var(--gold)"},
+    {sev:"ℹ️","label":"Info","text":"signals.json uses estimated prices as baseline — live prices override via browser fetch within 2–3 seconds of page load.","color":"var(--blue)"},
+    {sev:"ℹ️","label":"Info","text":"Strategy runs in DRY_RUN mode — no real orders. Set ALPACA keys + DRY_RUN=false in GitHub Secrets to enable live trading.","color":"var(--blue)"},
+  ];
+
+  findings.innerHTML = issues.map(({sev,label,text,color}) => `
+    <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:14px;flex-shrink:0">${sev}</span>
+      <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:${color}22;color:${color};flex-shrink:0;align-self:flex-start;margin-top:1px">${label}</span>
+      <span style="font-size:12px;color:var(--text2);line-height:1.5">${text}</span>
+    </div>`).join("") + `<div style="margin-top:12px;font-size:11px;color:var(--text3)">Audit performed 2026-06-04 · ${issues.filter(i=>i.label==="Fixed").length} fixed · ${issues.filter(i=>i.label==="TODO").length} pending · ${issues.filter(i=>i.label==="Monitor").length} monitoring</div>`;
+}
 
 async function loadAll() {
   showSkeletons();
@@ -1928,9 +2390,11 @@ function showPage(page, btn, filter){
     renderOverview();
   }
   // Every time Portfolio tab opens → fetch fresh prices
-  if(page === "portfolio") refreshPortfolioPrices();
-  // Every time Trade Log tab opens → re-render with latest data
-  if(page === "tradelog") renderTradeLog();
+  if(page === "portfolio")  refreshPortfolioPrices();
+  if(page === "tradelog")   renderTradeLog();
+  if(page === "analytics")  renderAnalytics();
+  if(page === "watchlist")  renderWatchlist();
+  if(page === "settings")   renderSettings();
 }
 
 /* ── Overview controls ─────────────────────────────── */

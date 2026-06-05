@@ -4,9 +4,9 @@
   "dry_run": true,
   "summary": {
     "total": 503,
-    "buy": 20,
+    "buy": 19,
     "sell": 9,
-    "hold": 474,
+    "hold": 475,
     "errors": 0
   },
   "signals": [
@@ -28,7 +28,6 @@
     {"ticker":"DIS","signal":"BUY","close":99.34,"rsi":31.8,"macd_diff":0.28,"sma_50":94.20,"sma_200":84.60,"bb_upper":108.00,"bb_lower":90.00,"atr_pct":1.8,"buy_score":3,"buy_triggers":["rsi_recovery","above_sma50","golden_cross"],"sell_triggers":[]},
     {"ticker":"CVS","signal":"BUY","close":94.82,"rsi":30.4,"macd_diff":0.32,"sma_50":88.60,"sma_200":78.40,"bb_upper":104.00,"bb_lower":86.00,"atr_pct":1.7,"buy_score":3,"buy_triggers":["rsi_recovery","above_sma50","golden_cross"],"sell_triggers":[]},
     {"ticker":"INTC","signal":"BUY","close":111.78,"rsi":32.6,"macd_diff":0.44,"sma_50":104.20,"sma_200":88.40,"bb_upper":122.00,"bb_lower":102.00,"atr_pct":2.8,"buy_score":3,"buy_triggers":["rsi_recovery","above_sma50","golden_cross"],"sell_triggers":[]},
-    {"ticker":"AMZN","signal":"BUY","close":253.79,"rsi":31.4,"macd_diff":0.58,"sma_50":240.20,"sma_200":214.60,"bb_upper":272.00,"bb_lower":236.00,"atr_pct":1.7,"buy_score":4,"buy_triggers":["rsi_recovery","macd_cross_up","above_sma50","golden_cross"],"sell_triggers":[]},
     {"ticker":"UBER","signal":"SELL","close":72.21,"rsi":72.4,"macd_diff":-0.48,"sma_50":76.80,"sma_200":82.60,"bb_upper":82.00,"bb_lower":64.00,"atr_pct":2.3,"buy_score":0,"buy_triggers":[],"sell_triggers":["rsi_overbought","death_cross"]},
     {"ticker":"CRM","signal":"SELL","close":188.75,"rsi":73.1,"macd_diff":-0.68,"sma_50":198.40,"sma_200":214.60,"bb_upper":208.00,"bb_lower":172.00,"atr_pct":2.2,"buy_score":0,"buy_triggers":[],"sell_triggers":["rsi_overbought","death_cross","macd_cross_down"]},
     {"ticker":"ADBE","signal":"SELL","close":258.42,"rsi":71.8,"macd_diff":-0.82,"sma_50":272.60,"sma_200":298.40,"bb_upper":286.00,"bb_lower":238.00,"atr_pct":1.8,"buy_score":0,"buy_triggers":[],"sell_triggers":["rsi_overbought","death_cross"]},
