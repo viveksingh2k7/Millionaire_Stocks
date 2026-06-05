@@ -39,8 +39,9 @@ log = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 # Signal threshold constants
 # ─────────────────────────────────────────────
-BB_LOWER_BUFFER = 1.015   # close <= bb_lower * this → near lower band
-BB_UPPER_BUFFER = 0.99    # close >= bb_upper * this → near upper band
+BB_LOWER_BUFFER  = 1.015   # close <= bb_lower * this → near lower band
+BB_UPPER_BUFFER  = 0.99    # close >= bb_upper * this → near upper band
+PROFIT_TARGET_PCT = 0.10   # sell when position is +10% from entry (take-profit)
 
 
 # ─────────────────────────────────────────────
@@ -52,11 +53,13 @@ class Config:
     BASE_URL       = os.environ.get("ALPACA_BASE_URL")   or sys.exit("ERROR: ALPACA_BASE_URL is not set")
     ACCOUNT_NAME   = os.environ.get("ALPACA_ACCOUNT_NAME", "default")
 
-    DRY_RUN        = os.environ.get("DRY_RUN", "true").lower() == "true"
-    ORDER_QTY      = int(os.environ.get("ORDER_QTY", "1"))          # shares per trade
-    STOP_LOSS_PCT  = float(os.environ.get("STOP_LOSS_PCT", "0.05")) # 5% stop-loss
-    BUY_THRESHOLD  = int(os.environ.get("BUY_THRESHOLD", "3"))      # min conditions for BUY
-    MIN_VOLUME     = int(os.environ.get("MIN_VOLUME", "500000"))     # liquidity filter
+    DRY_RUN            = os.environ.get("DRY_RUN", "true").lower() == "true"
+    ORDER_QTY          = int(os.environ.get("ORDER_QTY", "1"))               # shares per trade
+    STOP_LOSS_PCT      = float(os.environ.get("STOP_LOSS_PCT", "0.05"))      # 5%  stop-loss
+    PROFIT_TARGET_PCT  = float(os.environ.get("PROFIT_TARGET_PCT", "0.10"))  # 10% take-profit
+    BUY_THRESHOLD      = int(os.environ.get("BUY_THRESHOLD", "3"))           # min conditions for BUY
+    MIN_VOLUME         = int(os.environ.get("MIN_VOLUME", "2000000"))         # liquidity filter (raised to 2M)
+    HIGH_VOLUME_MULT   = float(os.environ.get("HIGH_VOLUME_MULT", "1.5"))     # volume spike multiplier
     MAX_POSITIONS  = int(os.environ.get("MAX_POSITIONS", "20"))
     RATE_LIMIT_SEC = float(os.environ.get("RATE_LIMIT_SEC", "0.35"))
 
@@ -180,38 +183,46 @@ def generate_signal(df: pd.DataFrame, entry_price: float = None) -> tuple[str, d
     latest = df.iloc[-1]
     prev   = df.iloc[-2]
 
-    # Liquidity & volatility filter
-    avg_vol = df["volume"].tail(20).mean()
-    atr_pct = latest["atr"] / latest["close"] if latest["close"] > 0 else 1.0
+    # ── Liquidity & volume filters ────────────────────────────
+    avg_vol      = df["volume"].tail(20).mean()
+    today_vol    = latest["volume"]
+    vol_spike    = today_vol / avg_vol if avg_vol > 0 else 0
+    atr_pct      = latest["atr"] / latest["close"] if latest["close"] > 0 else 1.0
+    is_high_vol  = avg_vol >= Config.MIN_VOLUME and vol_spike >= Config.HIGH_VOLUME_MULT
 
     if avg_vol < Config.MIN_VOLUME:
         return "HOLD", {"reason": "low_volume"}
-    if atr_pct > 0.05:
+    if atr_pct > 0.08:                        # relaxed to 8% to allow momentum stocks
         return "HOLD", {"reason": "high_volatility"}
 
     # ── BUY conditions ────────────────────────────────────────
-    rsi_recovery  = (prev["rsi"] < 30) and (latest["rsi"] >= 30)
-    macd_cross_up = (prev["macd_diff"] < 0) and (latest["macd_diff"] >= 0)
-    above_sma50   = latest["close"] > latest["sma_50"]
-    golden_cross  = latest["sma_50"] > latest["sma_200"]
-    near_bb_lower = latest["close"] <= latest["bb_lower"] * BB_LOWER_BUFFER
+    rsi_recovery   = (prev["rsi"] < 35) and (latest["rsi"] >= 35)   # slightly wider RSI window
+    macd_cross_up  = (prev["macd_diff"] < 0) and (latest["macd_diff"] >= 0)
+    above_sma50    = latest["close"] > latest["sma_50"]
+    golden_cross   = latest["sma_50"] > latest["sma_200"]
+    near_bb_lower  = latest["close"] <= latest["bb_lower"] * BB_LOWER_BUFFER
+    volume_confirm = is_high_vol                                      # ← NEW: volume spike on entry
 
     buy_conditions = {
-        "rsi_recovery":  rsi_recovery,
-        "macd_cross_up": macd_cross_up,
-        "above_sma50":   above_sma50,
-        "golden_cross":  golden_cross,
-        "near_bb_lower": near_bb_lower,
+        "rsi_recovery":   rsi_recovery,
+        "macd_cross_up":  macd_cross_up,
+        "above_sma50":    above_sma50,
+        "golden_cross":   golden_cross,
+        "near_bb_lower":  near_bb_lower,
+        "volume_confirm": volume_confirm,                             # ← 6th condition
     }
     buy_score = sum(buy_conditions.values())
 
     # ── SELL conditions ───────────────────────────────────────
-    rsi_overbought  = latest["rsi"] >= 70
+    rsi_overbought  = latest["rsi"] >= 72
     macd_cross_down = (prev["macd_diff"] > 0) and (latest["macd_diff"] <= 0)
     death_cross     = latest["sma_50"] < latest["sma_200"]
     at_bb_upper     = latest["close"] >= latest["bb_upper"] * BB_UPPER_BUFFER
     stop_loss       = (entry_price is not None) and \
                       (latest["close"] <= entry_price * (1 - Config.STOP_LOSS_PCT))
+    # ── TAKE-PROFIT: sell when +10% from entry ────────────────
+    take_profit     = (entry_price is not None) and \
+                      (latest["close"] >= entry_price * (1 + Config.PROFIT_TARGET_PCT))
 
     sell_conditions = {
         "rsi_overbought":  rsi_overbought,
@@ -219,19 +230,29 @@ def generate_signal(df: pd.DataFrame, entry_price: float = None) -> tuple[str, d
         "death_cross":     death_cross,
         "at_bb_upper":     at_bb_upper,
         "stop_loss":       stop_loss,
+        "take_profit":     take_profit,                               # ← NEW: 10% target
     }
 
+    # ── Unrealised P&L % if we hold this position ─────────────
+    unrealised_pct = None
+    if entry_price and entry_price > 0:
+        unrealised_pct = round((float(latest["close"]) - entry_price) / entry_price * 100, 2)
+
     details = {
-        "rsi":            round(float(latest["rsi"]), 2),
-        "macd_diff":      round(float(latest["macd_diff"]), 5),
-        "sma_50":         round(float(latest["sma_50"]), 2),
-        "sma_200":        round(float(latest["sma_200"]), 2),
-        "bb_upper":       round(float(latest["bb_upper"]), 2),
-        "bb_lower":       round(float(latest["bb_lower"]), 2),
-        "close":          round(float(latest["close"]), 2),
-        "atr_pct":        round(atr_pct * 100, 2),
-        "buy_score":      buy_score,
-        "buy_conditions": buy_conditions,
+        "rsi":             round(float(latest["rsi"]), 2),
+        "macd_diff":       round(float(latest["macd_diff"]), 5),
+        "sma_50":          round(float(latest["sma_50"]), 2),
+        "sma_200":         round(float(latest["sma_200"]), 2),
+        "bb_upper":        round(float(latest["bb_upper"]), 2),
+        "bb_lower":        round(float(latest["bb_lower"]), 2),
+        "close":           round(float(latest["close"]), 2),
+        "atr_pct":         round(atr_pct * 100, 2),
+        "vol_spike":       round(vol_spike, 2),
+        "avg_volume":      round(avg_vol, 0),
+        "is_high_vol":     is_high_vol,
+        "unrealised_pct":  unrealised_pct,
+        "buy_score":       buy_score,
+        "buy_conditions":  buy_conditions,
         "sell_conditions": sell_conditions,
     }
 

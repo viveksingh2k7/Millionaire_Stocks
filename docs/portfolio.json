@@ -1,30 +1,67 @@
 {
-  "updated_at": "2025-06-03T13:35:00Z",
+  "updated_at": "2026-06-04T13:35:00Z",
+  "strategy": "10% Profit Target | 5% Stop Loss | High-Volume Momentum | Beat S&P 500",
+  "monthly_target_usd": 2000,
   "holdings": [
     {
-      "ticker":       "WISE",
-      "yahoo_symbol": "WISE.L",
-      "name":         "Wise plc (LSE)",
+      "ticker":       "NVDA",
+      "yahoo_symbol": "NVDA",
+      "name":         "NVIDIA Corporation",
       "shares":       100,
-      "avg_cost":     9.85,
-      "currency":     "GBp",
-      "note":         "London-listed; price shown in pence, converted to USD"
+      "avg_cost":     218.66,
+      "currency":     "USD",
+      "sector":       "AI / Semiconductors",
+      "reason":       "AI infrastructure leader, avg daily volume 50M+, strong institutional demand"
+    },
+    {
+      "ticker":       "AAPL",
+      "yahoo_symbol": "AAPL",
+      "name":         "Apple Inc",
+      "shares":       100,
+      "avg_cost":     311.23,
+      "currency":     "USD",
+      "sector":       "Technology",
+      "reason":       "Largest market cap, avg daily volume 60M+, AI iPhone super-cycle"
+    },
+    {
+      "ticker":       "AMD",
+      "yahoo_symbol": "AMD",
+      "name":         "Advanced Micro Devices",
+      "shares":       100,
+      "avg_cost":     523.20,
+      "currency":     "USD",
+      "sector":       "AI / Semiconductors",
+      "reason":       "AI GPU competition to NVDA, avg daily volume 60M+, strong momentum"
+    },
+    {
+      "ticker":       "TSLA",
+      "yahoo_symbol": "TSLA",
+      "name":         "Tesla Inc",
+      "shares":       100,
+      "avg_cost":     418.45,
+      "currency":     "USD",
+      "sector":       "EV / AI Robotics",
+      "reason":       "Highest volatility on S&P 500, avg daily volume 100M+, 10% moves common"
     },
     {
       "ticker":       "AMZN",
       "yahoo_symbol": "AMZN",
       "name":         "Amazon.com Inc",
       "shares":       100,
-      "avg_cost":     182.50,
-      "currency":     "USD"
+      "avg_cost":     253.79,
+      "currency":     "USD",
+      "sector":       "Cloud / E-Commerce",
+      "reason":       "AWS cloud growth, avg daily volume 40M+, strong free cash flow"
     },
     {
-      "ticker":       "MOH",
-      "yahoo_symbol": "MOH",
-      "name":         "Molina Healthcare Inc",
+      "ticker":       "META",
+      "yahoo_symbol": "META",
+      "name":         "Meta Platforms Inc",
       "shares":       100,
-      "avg_cost":     299.40,
-      "currency":     "USD"
+      "avg_cost":     627.57,
+      "currency":     "USD",
+      "sector":       "Social Media / AI",
+      "reason":       "AI ad revenue machine, avg daily volume 15M+, consistent 10%+ swings"
     },
     {
       "ticker":       "PLTR",
@@ -32,9 +69,29 @@
       "name":         "Palantir Technologies",
       "shares":       100,
       "avg_cost":     24.80,
-      "verified_price_20260604": 141.70,
       "currency":     "USD",
-      "note":         "Bought at $24.80 in 2024 — current price fetched live from Yahoo Finance"
+      "sector":       "AI / Data Analytics",
+      "reason":       "Government AI contracts, avg daily volume 100M+, high-beta momentum"
+    },
+    {
+      "ticker":       "WISE",
+      "yahoo_symbol": "WISE.L",
+      "name":         "Wise plc (LSE)",
+      "shares":       100,
+      "avg_cost":     9.85,
+      "currency":     "GBp",
+      "sector":       "Fintech",
+      "reason":       "International money transfer growth, LSE listing"
+    },
+    {
+      "ticker":       "MOH",
+      "yahoo_symbol": "MOH",
+      "name":         "Molina Healthcare Inc",
+      "shares":       100,
+      "avg_cost":     299.40,
+      "currency":     "USD",
+      "sector":       "Healthcare",
+      "reason":       "Medicaid managed care, defensive position"
     }
   ]
 }

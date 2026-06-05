@@ -471,16 +471,52 @@
       <!-- Position cards -->
       <div class="port-cards" id="port-cards"></div>
 
-      <!-- Holdings table -->
+      <!-- P&L Summary banner -->
+      <div id="pnl-banner" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;">
+        <div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Strategy</div>
+          <div style="font-size:13px;font-weight:700;color:var(--gold);">10% Take-Profit · 5% Stop-Loss · High-Volume Momentum</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:20px;flex-wrap:wrap;">
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;">Monthly Target</div>
+            <div style="font-size:18px;font-weight:800;color:var(--gold);">$2,000</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;">Total P&amp;L</div>
+            <div style="font-size:18px;font-weight:800;" id="banner-pnl">—</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;">Best Performer</div>
+            <div style="font-size:18px;font-weight:800;color:var(--green);" id="banner-best">—</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;">To $2K Target</div>
+            <div style="font-size:18px;font-weight:800;" id="banner-target">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Holdings P&L table -->
       <div class="section-head" style="margin-top:8px;margin-bottom:12px">
-        <h2>Holdings Summary</h2>
+        <h2>Portfolio P&amp;L — All Transactions</h2>
+        <span style="font-size:11px;color:var(--text3)">10% target = SELL · 5% stop = EXIT · Live prices</span>
       </div>
       <div class="port-table-wrap">
         <table>
           <thead><tr>
-            <th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Cost</th>
-            <th>Current Price</th><th>Cost Basis</th><th>Market Value</th>
-            <th>Unrealised P&amp;L</th><th>P&amp;L %</th><th>Signal</th>
+            <th>Ticker</th>
+            <th>Name</th>
+            <th>Shares</th>
+            <th>Avg Cost</th>
+            <th>Live Price</th>
+            <th>Cost Basis</th>
+            <th>Market Value</th>
+            <th>Unrealised P&amp;L</th>
+            <th>P&amp;L %</th>
+            <th>10% Target</th>
+            <th>5% Stop</th>
+            <th>Signal</th>
           </tr></thead>
           <tbody id="port-table-body"></tbody>
           <tfoot id="port-table-foot"></tfoot>
@@ -1260,35 +1296,82 @@ function bootstrapPortfolio(){
   }).join("");
 
   // Holdings table
-  $("port-table-body").innerHTML=enriched.map(e=>{
-    const isGain=e.pnl>=0;
-    const sig=e.sig;
-    const sigLabel=sig?sig.signal:"HOLD";
-    const sigCls=sig?.signal==="BUY"?"sig-buy":sig?.signal==="SELL"?"sig-sell":"sig-hold";
+  // ── Enhanced P&L table with 10% target and 5% stop columns ──
+  $("port-table-body").innerHTML = enriched.map(e => {
+    const isGain  = e.pnl >= 0;
+    const sig     = e.sig;
+    const sigLabel= sig ? sig.signal : "HOLD";
+    const sigCls  = sig?.signal==="BUY" ? "sig-buy" : sig?.signal==="SELL" ? "sig-sell" : "sig-hold";
+
+    // 10% take-profit price and 5% stop-loss price
+    const target10 = e.avg_cost * 1.10;
+    const stop5    = e.avg_cost * 0.95;
+    const hitTarget = e.price >= target10;
+    const hitStop   = e.price <= stop5;
+    const pnlColor  = isGain ? "var(--green)" : "var(--red)";
+
+    // Distance to target / stop
+    const distToTarget = ((target10 - e.price) / e.price * 100).toFixed(1);
+    const distToStop   = ((e.price - stop5)   / e.price * 100).toFixed(1);
+
     return `<tr onclick="openModal('${e.ticker}')" style="cursor:pointer">
-      <td class="t-ticker"><a href="https://finance.yahoo.com/quote/${e.ticker}" target="_blank" onclick="event.stopPropagation()">${e.ticker}</a></td>
-      <td style="color:var(--text2)">${e.name}</td>
-      <td style="font-weight:600">${e.shares}</td>
+      <td class="t-ticker">
+        <a href="https://finance.yahoo.com/quote/${e.ticker}" target="_blank" onclick="event.stopPropagation()">${e.ticker}</a>
+        ${e.isLive ? '<span class="live-badge">LIVE</span>' : ''}
+      </td>
+      <td style="color:var(--text2);font-size:11px">${e.name}</td>
+      <td style="font-weight:600;text-align:center">${e.shares}</td>
       <td>${fp(e.avg_cost)}</td>
-      <td style="font-weight:600">${fp(e.price)}</td>
-      <td>${fp(e.cost)}</td>
+      <td style="font-weight:700">${fp(e.price)}</td>
+      <td style="color:var(--text2)">${fp(e.cost)}</td>
       <td style="font-weight:700">${fp(e.value)}</td>
-      <td style="font-weight:700;color:${isGain?"var(--green)":"var(--red)"}">${isGain?"+":""}${fp(Math.abs(e.pnl))}</td>
-      <td style="font-weight:700;color:${isGain?"var(--green)":"var(--red)"}">${isGain?"+":""}${fc(e.pnlPct)}%</td>
+      <td style="font-weight:800;color:${pnlColor}">${isGain?"+":""}${fp(Math.abs(e.pnl))}</td>
+      <td style="font-weight:800;color:${pnlColor}">
+        <span style="padding:2px 8px;border-radius:5px;background:${isGain?"var(--green-dim)":"var(--red-dim)"}">${isGain?"+":""}${fc(e.pnlPct)}%</span>
+      </td>
+      <td style="text-align:center">
+        <div style="font-size:12px;font-weight:700;color:${hitTarget?"var(--green)":"var(--text2)"}">${fp(target10)}</div>
+        <div style="font-size:10px;color:${hitTarget?"var(--green)":"var(--text3)"}">${hitTarget?"✅ HIT":"+"+distToTarget+"% away"}</div>
+      </td>
+      <td style="text-align:center">
+        <div style="font-size:12px;font-weight:700;color:${hitStop?"var(--red)":"var(--text2)"}">${fp(stop5)}</div>
+        <div style="font-size:10px;color:${hitStop?"var(--red)":"var(--text3)"}">${hitStop?"🛑 TRIGGERED":distToStop+"% above"}</div>
+      </td>
       <td><span class="t-sig ${sigCls}">${sigLabel}</span></td>
     </tr>`;
   }).join("");
 
-  // Table footer totals
-  const totalPnlSign=totalPnl>=0;
-  $("port-table-foot").innerHTML=`<tr style="background:var(--bg3);border-top:2px solid var(--border2)">
-    <td colspan="5" style="font-weight:700;font-size:12px;color:var(--text2)">TOTAL</td>
-    <td style="font-weight:700">${fp(totalCost)}</td>
-    <td style="font-weight:800;font-size:14px">${fp(totalVal)}</td>
-    <td style="font-weight:800;font-size:14px;color:${totalPnlSign?"var(--green)":"var(--red)"}">${totalPnlSign?"+":""}${fp(Math.abs(totalPnl))}</td>
-    <td style="font-weight:800;color:${totalPnlSign?"var(--green)":"var(--red)"}">${totalPnlSign?"+":""}${totalPnlPct.toFixed(2)}%</td>
-    <td></td>
-  </tr>`;
+  // ── Footer totals ─────────────────────────────────────────
+  const totalPnlSign = totalPnl >= 0;
+  const bestPos      = [...enriched].sort((a,b) => b.pnlPct - a.pnlPct)[0];
+  const worstPos     = [...enriched].sort((a,b) => a.pnlPct - b.pnlPct)[0];
+  $("port-table-foot").innerHTML = `
+    <tr style="background:var(--bg3);border-top:2px solid var(--border2)">
+      <td colspan="2" style="font-weight:700;font-size:12px;color:var(--text2)">PORTFOLIO TOTAL</td>
+      <td style="text-align:center;color:var(--text2)">${enriched.reduce((s,e)=>s+e.shares,0)}</td>
+      <td></td><td></td>
+      <td style="font-weight:700">${fp(totalCost)}</td>
+      <td style="font-weight:800;font-size:14px">${fp(totalVal)}</td>
+      <td style="font-weight:800;font-size:14px;color:${totalPnlSign?"var(--green)":"var(--red)"}">${totalPnlSign?"+":""}${fp(Math.abs(totalPnl))}</td>
+      <td style="font-weight:800;color:${totalPnlSign?"var(--green)":"var(--red)"}">
+        <span style="padding:2px 8px;border-radius:5px;background:${totalPnlSign?"var(--green-dim)":"var(--red-dim)"}">${totalPnlSign?"+":""}${totalPnlPct.toFixed(2)}%</span>
+      </td>
+      <td colspan="3"></td>
+    </tr>`;
+
+  // ── P&L banner ────────────────────────────────────────────
+  const bannerEl = document.getElementById("pnl-banner");
+  if (bannerEl) bannerEl.style.display = "flex";
+  const bp = document.getElementById("banner-pnl");
+  const bb = document.getElementById("banner-best");
+  const bt = document.getElementById("banner-target");
+  if (bp) { bp.textContent = (totalPnlSign?"+":"")+fp(Math.abs(totalPnl)); bp.style.color = totalPnlSign?"var(--green)":"var(--red)"; }
+  if (bb && bestPos) { bb.textContent = bestPos.ticker+" "+( bestPos.pnlPct>=0?"+":"")+fc(bestPos.pnlPct)+"%" ; }
+  if (bt) {
+    const remaining = 2000 - totalPnl;
+    bt.textContent  = remaining <= 0 ? "✅ TARGET MET!" : fp(remaining)+" to go";
+    bt.style.color  = remaining <= 0 ? "var(--green)" : "var(--gold)";
+  }
 
   buildPortCharts(enriched, totalVal);
 }

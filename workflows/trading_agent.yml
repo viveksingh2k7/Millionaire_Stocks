@@ -75,10 +75,12 @@ jobs:
           # ── Strategy parameters (override via workflow_dispatch) ──
           DRY_RUN:             ${{ github.event.inputs.dry_run || 'true' }}
           ORDER_QTY:           ${{ github.event.inputs.order_qty || '1' }}
-          STOP_LOSS_PCT:       "0.05"     # 5% stop-loss
-          BUY_THRESHOLD:       "3"        # min 3/5 conditions for BUY
-          MIN_VOLUME:          "500000"   # liquidity filter
-          MAX_POSITIONS:       "20"       # max concurrent positions
+          STOP_LOSS_PCT:       "0.05"     # 5% stop-loss (hard floor)
+          PROFIT_TARGET_PCT:   "0.10"     # 10% take-profit — sell when +10% from entry
+          HIGH_VOLUME_MULT:    "1.5"      # volume must be 1.5× 20-day avg to confirm entry
+          BUY_THRESHOLD:       "3"        # min 3/6 conditions for BUY
+          MIN_VOLUME:          "2000000"  # 2M minimum avg daily volume (high-liquidity filter)
+          MAX_POSITIONS:       "9"        # 9 high-conviction momentum positions
           RATE_LIMIT_SEC:      "0.35"     # seconds between API calls
         run: |
           python src/strategy.py
