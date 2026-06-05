@@ -1,0 +1,65 @@
+{
+  "id": "./",
+  "scope": "./",
+  "lang": "en",
+  "name": "Millionaire Stocks",
+  "short_name": "MS Stocks",
+  "description": "S&P 500 signal scanner — live BUY/SELL alerts, portfolio P&L, trade log, weekly reports.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "display_override": ["standalone"],
+  "background_color": "#0a0b0d",
+  "theme_color": "#0a0b0d",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "categories": ["finance", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Buy Signals",
+      "short_name": "Buy",
+      "description": "View today's top BUY signals",
+      "url": "./index.html#buy",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "My Portfolio",
+      "short_name": "Portfolio",
+      "description": "Check your portfolio P&L",
+      "url": "./index.html#portfolio",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Trade Log",
+      "short_name": "Trades",
+      "description": "View trade history and weekly report",
+      "url": "./index.html#tradelog",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any" }]
+    }
+  ]
+}

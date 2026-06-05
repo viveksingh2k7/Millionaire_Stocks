@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#0a0b0d"/>
+  <!-- Green glow ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#00c805" stroke-width="6" opacity="0.25"/>
+  <!-- Chart bars (rising trend) -->
+  <rect x="110" y="320" width="52" height="90"  rx="8" fill="#00c805" opacity="0.5"/>
+  <rect x="178" y="280" width="52" height="130" rx="8" fill="#00c805" opacity="0.65"/>
+  <rect x="246" y="230" width="52" height="180" rx="8" fill="#00c805" opacity="0.8"/>
+  <rect x="314" y="170" width="52" height="240" rx="8" fill="#00c805"/>
+  <!-- Upward trend line -->
+  <polyline points="136,310 204,265 272,215 340,160" fill="none" stroke="#00c805" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Arrow head -->
+  <polygon points="340,160 318,170 330,148" fill="#00c805"/>
+  <!-- Dollar sign -->
+  <text x="258" y="108" font-family="Arial,sans-serif" font-size="68" font-weight="900" fill="#00c805" text-anchor="middle">$</text>
+</svg>

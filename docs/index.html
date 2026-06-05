@@ -2,7 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <!-- ── Viewport: NO viewport-fit=cover (proven iOS bottom-gap fix) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+
+  <!-- ── iOS PWA ──────────────────────────────────────────────── -->
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="MS Stocks"/>
+  <link rel="apple-touch-icon" href="./icons/icon.svg"/>
+
+  <!-- ── Android PWA ──────────────────────────────────────────── -->
+  <meta name="application-name" content="Millionaire Stocks"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+
+  <!-- ── Theme & description ──────────────────────────────────── -->
+  <meta name="theme-color" content="#0a0b0d"/>
+  <meta name="description" content="S&P 500 signal scanner — live BUY/SELL alerts, portfolio P&L and trade log."/>
+
+  <link rel="manifest" href="./manifest.json"/>
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg"/>
+
   <title>Millionaire Stocks — S&P 500 Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -17,22 +37,88 @@
     --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
     --text:#f0f0f0;--text2:#9ea3b0;--text3:#5c6070;
     --r:14px;--rs:8px;--tr:.18s ease;
+
+    /* ── PWA safe-area insets (Dynamic Island / home indicator) ── */
+    --safe-t: env(safe-area-inset-top,    0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left,   0px);
+    --safe-r: env(safe-area-inset-right,  0px);
+    --nav-top-h: 58px;   /* sticky nav height */
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-  html{scroll-behavior:smooth;}
-  body{background:var(--bg);color:var(--text);font-family:"Inter",-apple-system,sans-serif;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+  /* PWA shell foundation */
+  html{
+    scroll-behavior:smooth;
+    height:100%;
+    -webkit-text-size-adjust:100%;    /* prevent iOS font inflation on rotate */
+    overscroll-behavior:none;         /* no Android pull-to-refresh on shell */
+  }
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:"Inter",-apple-system,sans-serif;
+    font-size:14px;line-height:1.5;
+    overflow-x:hidden;
+    height:100%;
+    overscroll-behavior:none;         /* Android Chrome */
+    -webkit-font-smoothing:antialiased;
+    user-select:none;                 /* native app feel */
+  }
+  /* Android: remove tap flash on all interactive elements */
+  button,a,[role="button"]{-webkit-tap-highlight-color:transparent;}
+
+  /* ── Desktop centering: looks great on tablet/desktop too ── */
+  @media(min-width:900px){
+    body{background:#050505;display:flex;align-items:flex-start;justify-content:center;}
+    #app{
+      width:100%;max-width:1440px;
+      border-left:1px solid rgba(255,255,255,.06);
+      border-right:1px solid rgba(255,255,255,.06);
+      box-shadow:0 0 60px rgba(0,0,0,.8);
+      min-height:100vh;
+    }
+  }
   ::selection{background:var(--green-dim);}
   ::-webkit-scrollbar{width:5px;height:5px;}
   ::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
+
+  /* ═══ PWA INSTALL BANNER ════════════════════════════════════════ */
+  #install-banner{
+    display:none;background:linear-gradient(135deg,#0d1a0d,#111318);
+    border-bottom:1px solid rgba(0,200,5,.3);
+    padding:10px 20px; padding-top:calc(10px + var(--safe-t));
+    gap:12px;align-items:center;justify-content:space-between;
+  }
+  #install-banner:not(.hidden){display:flex;}
+  #install-banner p{font-size:12px;color:var(--text2);flex:1;}
+  #install-banner strong{color:var(--green);}
+  .install-btn{
+    padding:7px 16px;border-radius:20px;border:none;cursor:pointer;
+    font-size:12px;font-weight:700;font-family:inherit;
+    background:var(--green);color:#000;flex-shrink:0;
+  }
+  .install-dismiss{background:transparent;color:var(--text3);font-size:18px;line-height:1;padding:4px 8px;border:none;cursor:pointer;}
+
+  #ios-install-hint{
+    display:none;background:var(--bg3);border-bottom:1px solid var(--border);
+    padding:10px 20px;text-align:center;font-size:11px;color:var(--text2);
+  }
+  #ios-install-hint:not(.hidden){display:block;}
 
   /* ═══ NAV ═══════════════════════════════════════════════════════ */
   nav{
     position:sticky;top:0;z-index:200;
     background:rgba(10,11,13,.94);backdrop-filter:blur(20px);
     border-bottom:1px solid var(--border);
-    padding:0 28px;height:58px;
-    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    /* Accounts for Dynamic Island / status bar in standalone PWA mode */
+    padding: var(--safe-t) 28px 0;
+    height: calc(var(--nav-top-h) + var(--safe-t));
+    display:flex;align-items:flex-end;padding-bottom:0;gap:16px;
+    padding-left:max(28px, calc(28px + var(--safe-l)));
+    padding-right:max(28px, calc(28px + var(--safe-r)));
   }
+  /* Inner nav row sits at the bottom of the nav zone */
+  nav > * { margin-bottom: 0; align-self: center; }
   .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;}
   .nav-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--green),#00a804);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 16px var(--green-glow);}
   .nav-title{font-size:15px;font-weight:700;color:var(--text);}
@@ -330,6 +416,17 @@
   </style>
 </head>
 <body>
+<div id="app">
+
+<!-- ════════ PWA INSTALL BANNERS ════════════════════════════════ -->
+<div id="install-banner" class="hidden">
+  <p><strong>Install Millionaire Stocks</strong> — add to your home screen for instant access to live signals.</p>
+  <button class="install-btn" onclick="promptInstall()">Install</button>
+  <button class="install-dismiss" onclick="this.closest('#install-banner').classList.add('hidden')" aria-label="Dismiss">×</button>
+</div>
+<div id="ios-install-hint" class="hidden">
+  📱 Tap <strong>Share ↑</strong> then <strong>"Add to Home Screen"</strong> to install Millionaire Stocks as an app.
+</div>
 
 <!-- ════════ NAV ═════════════════════════════════════════════════ -->
 <nav>
@@ -1839,7 +1936,75 @@ function showSkeletons(){
 }
 
 /* ── Boot ──────────────────────────────────────────── */
+// Handle URL fragment shortcuts (Android app shortcuts + iOS deep links)
+document.addEventListener('DOMContentLoaded', async () => {
+  const frag = window.location.hash;
+  if (frag === '#buy') {
+    const btn = document.querySelector('.nav-tab.tab-buy');
+    if(btn) showPage('overview', btn, 'BUY');
+    window.history.replaceState(null, '', './index.html');
+  } else if (frag === '#portfolio') {
+    const btn = document.querySelector('.nav-tab.tab-portfolio');
+    if(btn) showPage('portfolio', btn);
+    window.history.replaceState(null, '', './index.html');
+  } else if (frag === '#tradelog') {
+    const btn = document.querySelector('.nav-tab.tab-tradelog');
+    if(btn) showPage('tradelog', btn);
+    window.history.replaceState(null, '', './index.html');
+  }
+});
+
 loadAll();
 </script>
+
+<!-- ════════ PWA: Service Worker + Install Prompt ════════════════ -->
+<script>
+/* ── Service Worker registration ──────────────────────────────── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => console.log('✅ SW registered:', reg.scope))
+    .catch(err => console.warn('SW registration failed:', err));
+}
+
+/* ── Android: capture beforeinstallprompt ─────────────────────── */
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  window._installPrompt = e;
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.classList.remove('hidden');
+});
+
+/* ── Android: show "Installed!" feedback ─────────────────────── */
+window.addEventListener('appinstalled', () => {
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.classList.add('hidden');
+  console.log('✅ PWA installed successfully');
+});
+
+/* ── Install button handler ───────────────────────────────────── */
+async function promptInstall() {
+  if (!window._installPrompt) return;
+  window._installPrompt.prompt();
+  const { outcome } = await window._installPrompt.userChoice;
+  console.log('Install outcome:', outcome);
+  if (outcome === 'accepted') {
+    document.getElementById('install-banner')?.classList.add('hidden');
+  }
+  window._installPrompt = null;
+}
+
+/* ── iOS: show "Add to Home Screen" hint ─────────────────────── */
+const isIOS        = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone === true
+                  || window.matchMedia('(display-mode: standalone)').matches;
+if (isIOS && !isStandalone) {
+  // Show after 3s so it doesn't appear on first visit immediately
+  setTimeout(() => {
+    document.getElementById('ios-install-hint')?.classList.remove('hidden');
+  }, 3000);
+}
+</script>
+
+</div><!-- /#app -->
 </body>
 </html>
