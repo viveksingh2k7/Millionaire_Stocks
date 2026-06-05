@@ -2084,17 +2084,28 @@ function switchMarket(val) {
 /* Load India stocks data + prices */
 async function loadIndiaMarket() {
   // Load stock list if not already loaded
+  let baseline = {};
   if (!INDIA_STOCKS.length) {
     try {
       const res = await fetch("india_stocks.json?t=" + Date.now());
       if (res.ok) {
-        const d = await res.json();
+        const d   = await res.json();
         INDIA_STOCKS = d.stocks || [];
+        baseline     = d.baseline_prices || {};
       }
     } catch(e) { console.warn("india_stocks.json load failed:", e); }
   }
 
   if (!INDIA_STOCKS.length) return;
+
+  // Pre-populate with baseline prices so cards render instantly
+  if(Object.keys(baseline).length && !Object.keys(INDIA_PRICES).length) {
+    Object.entries(baseline).forEach(([t, p]) => {
+      INDIA_PRICES[t] = { price: p, change: null, change_pct: null, currency: "INR" };
+    });
+    renderIndiaCards();
+    renderIndiaPriceList();
+  }
 
   // Show skeleton
   const grid = document.getElementById("india-cards-grid");
