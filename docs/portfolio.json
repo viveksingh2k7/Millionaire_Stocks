@@ -32,7 +32,8 @@
       "name":         "Palantir Technologies",
       "shares":       100,
       "avg_cost":     24.80,
-      "currency":     "USD"
+      "currency":     "USD",
+      "note":         "Bought at $24.80 in 2024 — current price fetched live from Yahoo Finance"
     }
   ]
 }

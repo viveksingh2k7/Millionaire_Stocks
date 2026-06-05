@@ -566,47 +566,95 @@ const COLORS = ["#00c805","#6770e7","#f5a623","#a855f7"];
 const YF1 = "https://query1.finance.yahoo.com";
 const YF2 = "https://query2.finance.yahoo.com";
 
-/* Fetch one ticker via Yahoo Finance v8/finance/chart */
-async function fetchOne(sym) {
-  const url = `${YF1}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
-  const url2 = `${YF2}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
-
-  for (const endpoint of [url, url2]) {
-    try {
-      const res  = await fetch(endpoint, { headers: { Accept: "application/json" } });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const meta = data?.chart?.result?.[0]?.meta;
-      if (!meta) continue;
-
-      const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
-      const prev  = meta.chartPreviousClose  || meta.previousClose;
-      if (!price) continue;
-
-      const chg    = prev ? price - prev       : null;
-      const chgPct = prev ? (chg / prev) * 100 : null;
-
-      return {
-        price:      +price.toFixed(4),
-        prev_close: prev   ? +prev.toFixed(4)    : null,
-        change:     chg    ? +chg.toFixed(4)     : null,
-        change_pct: chgPct ? +chgPct.toFixed(4)  : null,
-        currency:   (meta.currency || "USD").toUpperCase(),
-      };
-    } catch { continue; }
-  }
-  return null; // both endpoints failed
+/* ── Parse Yahoo Finance chart meta into a quote object ── */
+function parseChartMeta(meta) {
+  if (!meta) return null;
+  const price = meta.regularMarketPrice || meta.postMarketPrice || meta.previousClose;
+  const prev  = meta.chartPreviousClose  || meta.previousClose;
+  if (!price) return null;
+  const chg    = prev ? price - prev       : null;
+  const chgPct = prev ? (chg / prev) * 100 : null;
+  return {
+    price:      +price.toFixed(4),
+    prev_close: prev   ? +prev.toFixed(4)   : null,
+    change:     chg    ? +chg.toFixed(4)    : null,
+    change_pct: chgPct ? +chgPct.toFixed(4) : null,
+    currency:   (meta.currency || "USD").toUpperCase(),
+  };
 }
 
-/* Fetch ALL symbols in parallel — Promise.allSettled ensures
-   every ticker gets an independent attempt.                   */
+/* ── Parse Yahoo Finance v7/quote result ─────────────────── */
+function parseQuoteResult(q) {
+  if (!q?.regularMarketPrice) return null;
+  const price = q.regularMarketPrice;
+  const prev  = q.regularMarketPreviousClose;
+  const chg   = q.regularMarketChange;
+  const chgPct = q.regularMarketChangePercent;
+  return {
+    price:      +price.toFixed(4),
+    prev_close: prev   ? +prev.toFixed(4)   : null,
+    change:     chg    ? +chg.toFixed(4)    : null,
+    change_pct: chgPct ? +chgPct.toFixed(4) : null,
+    currency:   (q.currency || "USD").toUpperCase(),
+  };
+}
+
+/* Fetch ONE ticker — tries 4 different endpoints in order   */
+async function fetchOne(sym) {
+  const enc = encodeURIComponent(sym);
+
+  // Endpoints tried in priority order
+  const attempts = [
+    // 1. v8/chart on query1
+    async () => {
+      const r = await fetch(`${YF1}/v8/finance/chart/${enc}?interval=1d&range=5d&includePrePost=false`,
+        { headers: { Accept: "application/json" } });
+      if (!r.ok) return null;
+      return parseChartMeta((await r.json())?.chart?.result?.[0]?.meta);
+    },
+    // 2. v8/chart on query2
+    async () => {
+      const r = await fetch(`${YF2}/v8/finance/chart/${enc}?interval=1d&range=5d&includePrePost=false`,
+        { headers: { Accept: "application/json" } });
+      if (!r.ok) return null;
+      return parseChartMeta((await r.json())?.chart?.result?.[0]?.meta);
+    },
+    // 3. v7/quote on query1 (individual — avoids batch CORS issues)
+    async () => {
+      const r = await fetch(`${YF1}/v7/finance/quote?symbols=${enc}`,
+        { headers: { Accept: "application/json" } });
+      if (!r.ok) return null;
+      return parseQuoteResult((await r.json())?.quoteResponse?.result?.[0]);
+    },
+    // 4. v7/quote on query2
+    async () => {
+      const r = await fetch(`${YF2}/v7/finance/quote?symbols=${enc}`,
+        { headers: { Accept: "application/json" } });
+      if (!r.ok) return null;
+      return parseQuoteResult((await r.json())?.quoteResponse?.result?.[0]);
+    },
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      const result = await attempt();
+      if (result) return result;
+    } catch { continue; }
+  }
+
+  console.warn(`⚠ fetchOne(${sym}): all 4 endpoints failed`);
+  return null;
+}
+
+/* Fetch ALL symbols in parallel — every ticker is independent */
 async function fetchAllPrices(symbols) {
   const settled = await Promise.allSettled(symbols.map(s => fetchOne(s)));
   const result  = {};
   settled.forEach((r, i) => {
     if (r.status === "fulfilled" && r.value) result[symbols[i]] = r.value;
   });
-  console.log(`📊 fetchAllPrices: ${Object.keys(result).length}/${symbols.length} succeeded`);
+  const n = Object.keys(result).length;
+  console.log(`📊 fetchAllPrices: ${n}/${symbols.length} loaded${n < symbols.length ? " — missing: " + symbols.filter(s => !result[s]).join(", ") : ""}`);
   return result;
 }
 
