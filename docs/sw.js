@@ -6,7 +6,7 @@
      • CDN assets    → network-first with cache fallback
    Bump CACHE_NAME version on every static asset change.
 ───────────────────────────────────────────────────────────── */
-const CACHE_NAME    = 'ms-stocks-v2';   // bumped: Nelumbus icons added
+const CACHE_NAME    = 'ms-stocks-v3';   // bumped: India NSE market added
 const DATA_CACHE    = 'ms-stocks-data-v1';
 
 const STATIC_ASSETS = [
@@ -24,6 +24,7 @@ const DATA_ASSETS = [
   './portfolio.json',
   './trade_log.json',
   './prices.json',
+  './india_stocks.json',
 ];
 
 const CDN_ASSETS = [

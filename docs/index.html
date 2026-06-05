@@ -489,6 +489,18 @@
     <button class="nav-tab tab-settings"        onclick="showPage('settings',this)">⚙️ Settings</button>
   </div>
   <div class="nav-right">
+    <!-- Market selector dropdown -->
+    <div style="position:relative;">
+      <select id="market-select" onchange="switchMarket(this.value)"
+        style="background:var(--bg3);border:1px solid var(--border2);border-radius:20px;
+               color:var(--text);font-size:12px;font-weight:600;font-family:inherit;
+               padding:6px 14px;cursor:pointer;outline:none;appearance:none;
+               -webkit-appearance:none;padding-right:28px;">
+        <option value="us">🇺🇸 S&amp;P 500</option>
+        <option value="india">🇮🇳 India NSE</option>
+      </select>
+      <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:9px;color:var(--text3);">▼</span>
+    </div>
     <span id="mode-badge" class="nav-badge badge-dry">DRY RUN</span>
     <span class="nav-time" id="nav-time">—</span>
   </div>
@@ -955,6 +967,86 @@
     </div>
   </div>
 </div><!-- /page-settings -->
+
+<!-- ════════════════════════════════════════════════════════════
+     PAGE: INDIA NSE
+════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-india">
+  <!-- Hero -->
+  <div class="hero" style="background:linear-gradient(135deg,#0d0a18 0%,#0a0b0d 50%,#180a0d 100%);">
+    <div class="hero::before" style="background:radial-gradient(ellipse 600px 300px at 20% 50%,rgba(255,153,0,.06),transparent 70%)"></div>
+    <div class="hero-inner">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+        <span style="font-size:42px;">🇮🇳</span>
+        <div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;">Live Market Data</div>
+          <div style="font-size:14px;color:#FF9500;font-weight:700;">National Stock Exchange · NIFTY 100</div>
+        </div>
+      </div>
+      <h1 style="font-size:28px;">India NSE — Top 100 Stocks</h1>
+      <p>Live prices in ₹ INR · NSE listed stocks · Prices from Yahoo Finance (.NS)</p>
+      <div class="hero-stats" style="margin-top:20px">
+        <div class="hstat" style="border-top:3px solid #FF9500"><div class="hstat-glow" style="background:#FF9500"></div><div class="hstat-label">Stocks</div><div class="hstat-val" id="in-total" style="color:#FF9500">100</div><div class="hstat-sub">NIFTY 100</div></div>
+        <div class="hstat s-buy"><div class="hstat-glow"></div><div class="hstat-label">Gainers</div><div class="hstat-val" id="in-gainers">—</div><div class="hstat-sub">Price up today</div></div>
+        <div class="hstat s-sell"><div class="hstat-glow"></div><div class="hstat-label">Losers</div><div class="hstat-val" id="in-losers">—</div><div class="hstat-sub">Price down today</div></div>
+        <div class="hstat s-scan"><div class="hstat-glow"></div><div class="hstat-label">Updated</div><div class="hstat-val" id="in-updated" style="font-size:15px;margin-top:4px">—</div><div class="hstat-sub" id="in-ago">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="col-main">
+      <!-- Filter bar -->
+      <div class="section-head" style="margin-bottom:14px">
+        <h2 id="india-section-title">All Stocks</h2>
+        <span class="count-pill" id="india-count">100</span>
+      </div>
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input class="search-input" id="india-search" type="search" placeholder="Search stock…" autocomplete="off"/>
+        </div>
+        <div class="seg" id="india-filter-seg">
+          <button class="seg-btn active" data-if="ALL">All</button>
+          <button class="seg-btn" data-if="GAIN" style="color:var(--green)">📈 Gainers</button>
+          <button class="seg-btn" data-if="LOSE" style="color:var(--red)">📉 Losers</button>
+        </div>
+        <select class="sort-select" id="india-sort" onchange="renderIndiaCards()">
+          <option value="chg-desc">Change % ↓</option>
+          <option value="chg-asc">Change % ↑</option>
+          <option value="price-desc">Price ↓</option>
+          <option value="alpha">A–Z</option>
+        </select>
+      </div>
+
+      <!-- Stock cards grid -->
+      <div class="cards-grid" id="india-cards-grid">
+        <div class="empty" style="grid-column:1/-1">
+          <div class="empty-icon">🇮🇳</div>
+          <p>Loading NSE prices…</p>
+        </div>
+      </div>
+      <p id="india-row-count" style="text-align:right;color:var(--text3);font-size:11px;margin-top:8px;"></p>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-side">
+      <!-- Market stats -->
+      <div class="sidebar-box">
+        <h3>Sector Breakdown</h3>
+        <canvas id="chart-india-sector" height="200"></canvas>
+      </div>
+      <!-- Price list -->
+      <div id="india-price-panel" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-top:0;">
+        <div style="padding:11px 14px 9px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">All 100 Stocks</span>
+          <span id="india-live-count" style="font-size:10px;color:var(--text3)">—</span>
+        </div>
+        <div id="india-price-list" style="overflow-y:auto;max-height:600px;"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-india -->
 
 <!-- ════════ MODAL ════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
@@ -1960,6 +2052,252 @@ function renderSettings() {
       <span style="font-size:12px;color:var(--text2);line-height:1.5">${text}</span>
     </div>`).join("") + `<div style="margin-top:12px;font-size:11px;color:var(--text3)">Audit performed 2026-06-04 · ${issues.filter(i=>i.label==="Fixed").length} fixed · ${issues.filter(i=>i.label==="TODO").length} pending · ${issues.filter(i=>i.label==="Monitor").length} monitoring</div>`;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   INDIA NSE MARKET
+   Fetches live prices for NIFTY 100 via Yahoo Finance (.NS)
+════════════════════════════════════════════════════════════ */
+
+let INDIA_STOCKS   = [];    // [{ticker, name, sector}]
+let INDIA_PRICES   = {};    // ticker → {price, change, change_pct, currency}
+let INDIA_FILTER   = "ALL";
+let INDIA_LOADED   = false;
+
+/* Switch market dropdown handler */
+function switchMarket(val) {
+  if (val === "india") {
+    // Hide all other pages and show India page
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById("page-india").classList.add("active");
+    document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+    loadIndiaMarket();
+  } else {
+    // Switch back to Overview (US)
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById("page-overview").classList.add("active");
+    document.querySelectorAll(".nav-tab").forEach(t => {
+      if(t.classList.contains("tab-overview")) t.classList.add("active");
+    });
+  }
+}
+
+/* Load India stocks data + prices */
+async function loadIndiaMarket() {
+  // Load stock list if not already loaded
+  if (!INDIA_STOCKS.length) {
+    try {
+      const res = await fetch("india_stocks.json?t=" + Date.now());
+      if (res.ok) {
+        const d = await res.json();
+        INDIA_STOCKS = d.stocks || [];
+      }
+    } catch(e) { console.warn("india_stocks.json load failed:", e); }
+  }
+
+  if (!INDIA_STOCKS.length) return;
+
+  // Show skeleton
+  const grid = document.getElementById("india-cards-grid");
+  if(grid) grid.innerHTML = Array.from({length:6}, ()=>`
+    <div class="stock-card card-buy skeleton" style="pointer-events:none">
+      <div style="height:14px;background:var(--bg3);border-radius:4px;width:55%;margin-bottom:10px"></div>
+      <div style="height:24px;background:var(--bg3);border-radius:4px;width:38%;margin-bottom:14px"></div>
+      <div style="height:56px;background:var(--bg3);border-radius:7px;margin-bottom:10px"></div>
+    </div>`).join("");
+
+  // Fetch all prices in parallel
+  const tickers = INDIA_STOCKS.map(s => s.ticker);
+  const settled = await Promise.allSettled(tickers.map(t => fetchOne(t)));
+  INDIA_PRICES  = {};
+  settled.forEach((r, i) => {
+    if (r.status === "fulfilled" && r.value) INDIA_PRICES[tickers[i]] = r.value;
+  });
+
+  const loaded  = Object.keys(INDIA_PRICES).length;
+  const now     = new Date();
+  INDIA_LOADED  = true;
+
+  // Hero stats
+  const gainers = Object.values(INDIA_PRICES).filter(p => (p.change_pct||0) > 0).length;
+  const losers  = Object.values(INDIA_PRICES).filter(p => (p.change_pct||0) < 0).length;
+  const upd = document.getElementById("in-updated");
+  const ago = document.getElementById("in-ago");
+  const g   = document.getElementById("in-gainers");
+  const l   = document.getElementById("in-losers");
+  if(g) g.textContent = gainers;
+  if(l) l.textContent = losers;
+  if(upd) upd.textContent = now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+  if(ago) ago.textContent = `${loaded}/100 prices loaded`;
+
+  renderIndiaCards();
+  renderIndiaPriceList();
+  renderIndiaSectorChart();
+}
+
+/* Filter/sort and render India stock cards */
+function renderIndiaCards() {
+  const q      = (document.getElementById("india-search")?.value || "").trim().toLowerCase();
+  const sort   = document.getElementById("india-sort")?.value || "chg-desc";
+  const grid   = document.getElementById("india-cards-grid");
+  const cnt    = document.getElementById("india-count");
+  const rcnt   = document.getElementById("india-row-count");
+  if(!grid) return;
+
+  let rows = INDIA_STOCKS.map(s => ({
+    ...s,
+    lp: INDIA_PRICES[s.ticker] || null,
+  })).filter(r => {
+    if(q && !r.ticker.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false;
+    if(INDIA_FILTER === "GAIN") return (r.lp?.change_pct || 0) > 0;
+    if(INDIA_FILTER === "LOSE") return (r.lp?.change_pct || 0) < 0;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    if (sort === "chg-desc") return (b.lp?.change_pct||0) - (a.lp?.change_pct||0);
+    if (sort === "chg-asc")  return (a.lp?.change_pct||0) - (b.lp?.change_pct||0);
+    if (sort === "price-desc") return (b.lp?.price||0) - (a.lp?.price||0);
+    if (sort === "alpha") return a.ticker.localeCompare(b.ticker);
+    return 0;
+  });
+
+  if(cnt) cnt.textContent = rows.length;
+  if(rcnt) rcnt.textContent = `${rows.length} of ${INDIA_STOCKS.length} stocks`;
+
+  if(!rows.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>No matching stocks</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = rows.map(r => {
+    const lp      = r.lp;
+    const price   = lp?.price ?? null;
+    const chgPct  = lp?.change_pct ?? null;
+    const isUp    = chgPct != null ? chgPct >= 0 : null;
+    const isLive  = !!price;
+    const cardCls = isUp === null ? "card-buy" : isUp ? "card-buy" : "card-sell";
+    const chgHtml = chgPct != null
+      ? `<span class="card-change ${isUp?"up":"dn"}">${isUp?"+":""}${chgPct.toFixed(2)}%</span>`
+      : `<span style="font-size:11px;color:var(--text3)">loading…</span>`;
+
+    return `<div class="stock-card ${cardCls}" onclick="openIndiaModal('${r.ticker}')">
+      <div class="card-glow"></div>
+      <div class="card-row1">
+        <div>
+          <div class="card-ticker" style="font-size:14px">
+            ${r.ticker.replace(".NS","")}
+            ${isLive?'<span class="live-badge">LIVE</span>':''}
+          </div>
+          <div class="card-name" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;background:rgba(255,153,0,.12);color:#FF9500;flex-shrink:0">${r.sector}</span>
+      </div>
+      <div class="card-price-row">
+        <span class="card-price">${price != null ? "₹"+Number(price).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}) : "—"}</span>
+        ${chgHtml}
+      </div>
+      <div class="card-metrics" style="grid-template-columns:1fr 1fr;">
+        <div class="metric"><div class="metric-label">Exch</div><div class="metric-val" style="color:#FF9500">NSE</div></div>
+        <div class="metric"><div class="metric-label">Currency</div><div class="metric-val">₹ INR</div></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* Right sidebar price list */
+function renderIndiaPriceList() {
+  const list = document.getElementById("india-price-list");
+  const liveCount = document.getElementById("india-live-count");
+  if(!list) return;
+
+  const loaded = Object.keys(INDIA_PRICES).length;
+  if(liveCount) liveCount.textContent = `${loaded}/100 live`;
+
+  list.innerHTML = INDIA_STOCKS.map(s => {
+    const lp     = INDIA_PRICES[s.ticker];
+    const price  = lp?.price;
+    const chgPct = lp?.change_pct;
+    const isUp   = chgPct != null ? chgPct >= 0 : null;
+    return `<div class="sp-row" onclick="openIndiaModal('${s.ticker}')">
+      <div class="sp-badge" style="background:${isUp===null?"var(--text3)":isUp?"var(--green)":"var(--red)"}"></div>
+      <span class="sp-ticker" style="width:60px;font-size:12px">${s.ticker.replace(".NS","")}</span>
+      <span class="sp-price">${price!=null?"₹"+Number(price).toFixed(2):"—"}</span>
+      <span class="sp-chg" style="color:${isUp===null?"var(--text3)":isUp?"var(--green)":"var(--red)"}">${chgPct!=null?(isUp?"+":"")+chgPct.toFixed(2)+"%":"—"}</span>
+    </div>`;
+  }).join("");
+}
+
+/* Sector breakdown donut for India */
+function renderIndiaSectorChart() {
+  if(charts["chart-india-sector"]) { charts["chart-india-sector"].destroy(); delete charts["chart-india-sector"]; }
+  const sectorMap = {};
+  INDIA_STOCKS.forEach(s => {
+    const val = INDIA_PRICES[s.ticker]?.price || 0;
+    sectorMap[s.sector] = (sectorMap[s.sector] || 0) + 1;
+  });
+  const labels = Object.keys(sectorMap);
+  const data   = Object.values(sectorMap);
+  const colors = ["#FF9500","#00c805","#6770e7","#ff5000","#f5a623","#a855f7","#00bcd4","#e74670","#8bc34a","#58a6ff","#ffb300","#26a69a","#ef5350","#ab47bc","#ffa726"];
+  charts["chart-india-sector"] = new Chart(document.getElementById("chart-india-sector"),{
+    type:"doughnut",
+    data:{labels,datasets:[{data,backgroundColor:colors.slice(0,labels.length),borderColor:"#111318",borderWidth:2,hoverOffset:4}]},
+    options:{cutout:"55%",plugins:{legend:{labels:{color:"#5c6070",font:{size:9},padding:6}}}}
+  });
+}
+
+/* Simple India stock detail modal */
+function openIndiaModal(ticker) {
+  const s  = INDIA_STOCKS.find(x => x.ticker === ticker);
+  const lp = INDIA_PRICES[ticker];
+  if(!s) return;
+  const price  = lp?.price;
+  const chg    = lp?.change;
+  const chgPct = lp?.change_pct;
+  const isUp   = chgPct != null ? chgPct >= 0 : null;
+  const sym    = ticker.replace(".NS","");
+
+  // Reuse the existing modal
+  $("m-icon").className = "m-icon " + (isUp ? "bi" : "si");
+  $("m-icon").textContent = sym.slice(0,2);
+  $("m-ticker").textContent = sym + " · " + s.name;
+  $("m-price").innerHTML = (price ? "₹" + Number(price).toLocaleString("en-IN",{minimumFractionDigits:2}) : "—")
+    + ` <span class="live-badge">LIVE</span>`
+    + (chgPct != null ? ` <span style="color:${isUp?"var(--green)":"var(--red)"};font-size:12px;font-weight:700">${isUp?"+":""}${chgPct.toFixed(2)}% today</span>` : "");
+
+  $("m-sig-pill").innerHTML = `<span style="padding:3px 10px;border-radius:4px;background:rgba(255,153,0,.12);color:#FF9500;font-size:11px;font-weight:700">${s.sector}</span>`;
+  $("m-grid").innerHTML = [
+    ["Exchange", "NSE India"],
+    ["Currency", "₹ INR"],
+    ["Live Price", price ? "₹" + Number(price).toFixed(2) : "—"],
+    ["Change", chg != null ? (chg>=0?"+":"")+"₹"+Math.abs(chg).toFixed(2) : "—"],
+    ["Change %", chgPct != null ? (chgPct>=0?"+":"")+chgPct.toFixed(2)+"%" : "—"],
+    ["Sector", s.sector],
+  ].map(([l,v]) => `<div class="m-metric"><div class="m-metric-label">${l}</div><div class="m-metric-val">${v}</div></div>`).join("");
+
+  $("m-trig-label").textContent = "NSE Listed";
+  $("m-trigs").innerHTML = `<span class="trig" style="background:rgba(255,153,0,.12);color:#FF9500">NIFTY 100</span>
+    <span class="trig trig-buy">NSE</span>`;
+
+  $("m-actions").innerHTML = `
+    <a class="m-btn m-btn-ext" href="https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}" target="_blank">Yahoo Finance ↗</a>
+    <a class="m-btn m-btn-ext" href="https://www.nseindia.com/get-quotes/equity?symbol=${sym}" target="_blank" style="background:rgba(255,153,0,.15);color:#FF9500;">NSE India ↗</a>`;
+
+  $("modal-overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+/* India filter buttons */
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("#india-filter-seg .seg-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      INDIA_FILTER = btn.dataset.if;
+      document.querySelectorAll("#india-filter-seg .seg-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderIndiaCards();
+    });
+  });
+  document.getElementById("india-search")?.addEventListener("input", renderIndiaCards);
+});
 
 async function loadAll() {
   showSkeletons();
