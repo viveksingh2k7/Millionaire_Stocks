@@ -345,6 +345,7 @@
     <button class="nav-tab tab-buy"             onclick="showPage('overview',this,'BUY')">🟢 Buy Signals</button>
     <button class="nav-tab tab-sell"            onclick="showPage('overview',this,'SELL')">🔴 Sell Signals</button>
     <button class="nav-tab tab-portfolio"       onclick="showPage('portfolio',this)">💼 My Portfolio</button>
+    <button class="nav-tab tab-tradelog"        onclick="showPage('tradelog',this)">📓 Trade Log</button>
   </div>
   <div class="nav-right">
     <span id="mode-badge" class="nav-badge badge-dry">DRY RUN</span>
@@ -537,6 +538,80 @@
   </div>
 </div><!-- /page-portfolio -->
 
+<!-- ════════════════════════════════════════════════════════════
+     PAGE: TRADE LOG
+════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-tradelog">
+  <div class="port-hero">
+    <div class="port-hero-inner">
+      <h1>📓 Trade Log &amp; Weekly Report</h1>
+      <p>Every BUY and SELL recorded automatically. Weekly P&amp;L report generated each Sunday.</p>
+      <div class="port-summary" id="tl-summary-cards" style="margin-top:22px"></div>
+    </div>
+  </div>
+
+  <div class="port-layout">
+    <div class="port-main">
+
+      <!-- Weekly Reports -->
+      <div class="section-head" style="margin-bottom:14px">
+        <h2>📅 Weekly Reports</h2>
+        <span style="font-size:11px;color:var(--text3)">Auto-generated every Sunday · Last 12 weeks</span>
+      </div>
+      <div id="weekly-reports-list" style="margin-bottom:28px"></div>
+
+      <!-- Trade Log Table -->
+      <div class="section-head" style="margin-bottom:14px">
+        <h2>All Trades</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="tl-count" class="count-pill">—</span>
+          <div class="seg" id="tl-filter-seg">
+            <button class="seg-btn active" data-tf="ALL">All</button>
+            <button class="seg-btn buy-seg"  data-tf="BUY">🟢 Buy</button>
+            <button class="seg-btn sell-seg" data-tf="SELL">🔴 Sell</button>
+            <button class="seg-btn" data-tf="WIN" style="color:var(--green)">✅ Win</button>
+            <button class="seg-btn" data-tf="LOSS" style="color:var(--red)">❌ Loss</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="port-table-wrap">
+        <table>
+          <thead><tr>
+            <th>ID</th><th>Date</th><th>Time</th>
+            <th>Ticker</th><th>Action</th>
+            <th>Shares</th><th>Price</th><th>Total</th>
+            <th>10% Target</th><th>5% Stop</th>
+            <th>RSI</th><th>Vol Spike</th>
+            <th>Triggers</th>
+            <th>P&amp;L $</th><th>P&amp;L %</th>
+            <th>Outcome</th><th>Status</th>
+          </tr></thead>
+          <tbody id="tl-table-body"></tbody>
+        </table>
+      </div>
+      <p id="tl-row-count" style="text-align:right;color:var(--text3);font-size:11px;margin-top:8px"></p>
+
+    </div>
+
+    <!-- Trade Log Sidebar -->
+    <div class="port-side">
+      <div class="sidebar-box">
+        <h3>Win / Loss Split</h3>
+        <canvas id="chart-wl" height="180"></canvas>
+      </div>
+      <div class="sidebar-box">
+        <h3>Weekly P&amp;L Trend</h3>
+        <canvas id="chart-weekly-pnl" height="160"></canvas>
+      </div>
+      <div class="sidebar-box" id="tl-best-box">
+        <h3>🏆 Best Trades</h3>
+        <div id="tl-best-list"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-tradelog -->
+
 <!-- ════════ MODAL ════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
   <div class="modal" id="modal">
@@ -568,6 +643,8 @@
 <script>
 /* ── State ─────────────────────────────────────────── */
 let ALL_SIG      = [];
+let TRADE_LOG    = { trades: [], weekly_reports: [] };
+let TL_FILTER    = "ALL";
 let PORTFOLIO    = [];
 let PRICES       = {};   // ticker → {price_usd, change_usd, change_pct}
 let PRICES_META  = {};   // raw prices.json payload
@@ -867,22 +944,242 @@ async function fetchLivePricesAndRender() {
 }
 
 /* ── Load all data ─────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   TRADE LOG & WEEKLY REPORT
+════════════════════════════════════════════════════════════ */
+function renderTradeLog() {
+  const trades = TRADE_LOG.trades || [];
+  const reports = TRADE_LOG.weekly_reports || [];
+
+  // ── Summary cards ────────────────────────────────────────
+  const allSells  = trades.filter(t => t.action === "SELL");
+  const winners   = allSells.filter(t => (t.realised_pnl || 0) > 0);
+  const totalPnl  = allSells.reduce((s, t) => s + (t.realised_pnl || 0), 0);
+  const openTrades= trades.filter(t => t.action === "BUY" && t.status === "OPEN");
+  const winRate   = allSells.length ? (winners.length / allSells.length * 100).toFixed(0) : 0;
+
+  const sc = document.getElementById("tl-summary-cards");
+  if(sc) sc.innerHTML = `
+    <div class="psum" style="border-top:3px solid var(--blue)">
+      <div class="psum-label">Total Trades</div>
+      <div class="psum-val" style="color:#8b9bff">${trades.length}</div>
+      <div class="psum-sub" style="color:var(--text3)">${openTrades.length} open · ${allSells.length} closed</div>
+    </div>
+    <div class="psum" style="border-top:3px solid var(--green)">
+      <div class="psum-label">Realised P&amp;L</div>
+      <div class="psum-val" style="color:${totalPnl>=0?"var(--green)":"var(--red)"}">${totalPnl>=0?"+":""}${fp(Math.abs(totalPnl))}</div>
+      <div class="psum-sub" style="color:var(--text3)">${winners.length} winners · ${allSells.length-winners.length} losers</div>
+    </div>
+    <div class="psum" style="border-top:3px solid var(--gold)">
+      <div class="psum-label">Win Rate</div>
+      <div class="psum-val" style="color:var(--gold)">${winRate}%</div>
+      <div class="psum-sub" style="color:var(--text3)">Target ≥ 60% for $2K/mo</div>
+    </div>
+    <div class="psum" style="border-top:3px solid ${totalPnl>=2000?"var(--green)":"var(--red)"}">
+      <div class="psum-label">To $2K Target</div>
+      <div class="psum-val" style="color:${totalPnl>=2000?"var(--green)":"var(--gold)"}">${totalPnl>=2000?"✅ MET":"$"+fc(Math.max(0,2000-totalPnl))}</div>
+      <div class="psum-sub" style="color:var(--text3)">${fp(totalPnl)} earned this month</div>
+    </div>`;
+
+  // ── Count pill ────────────────────────────────────────────
+  const filtered = filteredTrades();
+  const cp = document.getElementById("tl-count");
+  if(cp) cp.textContent = filtered.length;
+  const rc = document.getElementById("tl-row-count");
+  if(rc) rc.textContent = `${filtered.length} of ${trades.length} trades`;
+
+  // ── Weekly reports ────────────────────────────────────────
+  const wrl = document.getElementById("weekly-reports-list");
+  if(wrl) {
+    if(!reports.length) {
+      wrl.innerHTML = `<div class="empty"><div class="empty-icon">📅</div><p>No weekly reports yet. Reports auto-generate on Sunday.</p></div>`;
+    } else {
+      wrl.innerHTML = reports.map(r => {
+        const s = r.summary || {};
+        const pnl = s.realised_pnl || 0;
+        const isPos = pnl >= 0;
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:2px">Week ${r.week} &nbsp;<span style="font-size:11px;color:var(--text3);font-weight:400">${r.period}</span></div>
+              <div style="font-size:11px;color:var(--text3)">${r.notes || ""}</div>
+            </div>
+            <div style="font-size:24px;font-weight:800;color:${isPos?"var(--green)":"var(--red)"}">${isPos?"+":""}${fp(Math.abs(pnl))}</div>
+          </div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;">
+            ${[
+              ["Trades", s.total_trades||0],
+              ["Buys", s.buys||0],
+              ["Sells", s.sells||0],
+              ["Winners", s.winners||0],
+              ["Losers", s.losers||0],
+              ["Win Rate", (s.win_rate_pct||0)+"%"],
+              ["Open Pos", s.open_positions||0],
+              ["To $2K", s.to_monthly_target>0 ? fp(s.to_monthly_target)+" left" : "✅ MET"],
+            ].map(([l,v]) => `<div style="text-align:center;min-width:60px">
+              <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">${l}</div>
+              <div style="font-size:13px;font-weight:700">${v}</div>
+            </div>`).join("")}
+          </div>
+        </div>`;
+      }).join("");
+    }
+  }
+
+  // ── Trade table ───────────────────────────────────────────
+  renderTradeTable();
+
+  // ── Side charts ───────────────────────────────────────────
+  buildTradeLogCharts(trades, reports);
+
+  // ── Best trades list ──────────────────────────────────────
+  const bestList = document.getElementById("tl-best-list");
+  if(bestList) {
+    const top = [...allSells].sort((a,b)=>(b.realised_pnl||0)-(a.realised_pnl||0)).slice(0,5);
+    bestList.innerHTML = top.length ? top.map(t => {
+      const isW = (t.realised_pnl||0)>0;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="width:32px;height:32px;border-radius:9px;background:${isW?"var(--green-dim)":"var(--red-dim)"};color:${isW?"var(--green)":"var(--red)"};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">${t.ticker.slice(0,2)}</div>
+        <div style="flex:1"><div style="font-size:12px;font-weight:700">${t.ticker}</div><div style="font-size:10px;color:var(--text3)">${t.date}</div></div>
+        <div style="text-align:right"><div style="font-size:13px;font-weight:700;color:${isW?"var(--green)":"var(--red)"}">${isW?"+":""}${fp(Math.abs(t.realised_pnl||0))}</div><div style="font-size:10px;color:var(--text3)">${t.realised_pnl_pct!=null?(t.realised_pnl_pct>0?"+":"")+fc(t.realised_pnl_pct)+"%" : ""}</div></div>
+      </div>`;
+    }).join("") : `<p style="color:var(--text3);font-size:12px">No closed trades yet.</p>`;
+  }
+}
+
+function filteredTrades() {
+  const trades = TRADE_LOG.trades || [];
+  if(TL_FILTER === "ALL")  return trades;
+  if(TL_FILTER === "BUY")  return trades.filter(t => t.action === "BUY");
+  if(TL_FILTER === "SELL") return trades.filter(t => t.action === "SELL");
+  if(TL_FILTER === "WIN")  return trades.filter(t => t.outcome === "WIN");
+  if(TL_FILTER === "LOSS") return trades.filter(t => t.outcome === "LOSS");
+  return trades;
+}
+
+function renderTradeTable() {
+  const rows = [...filteredTrades()].reverse(); // newest first
+  const tbody = document.getElementById("tl-table-body");
+  if(!tbody) return;
+
+  if(!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="17"><div class="empty"><div class="empty-icon">📋</div><p>No trades yet. The agent logs every BUY and SELL automatically.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(t => {
+    const isBuy  = t.action === "BUY";
+    const isWin  = t.outcome === "WIN";
+    const isLoss = t.outcome === "LOSS";
+    const pnlColor = isWin ? "var(--green)" : isLoss ? "var(--red)" : "var(--text2)";
+    const actionBadge = isBuy
+      ? `<span class="t-sig sig-buy">BUY</span>`
+      : `<span class="t-sig sig-sell">SELL</span>`;
+    const outcomeBadge = t.outcome === "WIN"  ? `<span style="color:var(--green);font-weight:700">✅ WIN</span>`
+                       : t.outcome === "LOSS" ? `<span style="color:var(--red);font-weight:700">❌ LOSS</span>`
+                       : "—";
+    const statusBadge = t.status === "OPEN"
+      ? `<span style="color:var(--gold);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(245,166,35,.12)">OPEN</span>`
+      : `<span style="color:var(--text3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--bg3)">CLOSED</span>`;
+    const trigHtml = (t.triggers||[]).map(x=>`<span class="trig trig-${isBuy?"buy":"sell"}">${x.replace(/_/g," ")}</span>`).join(" ");
+
+    return `<tr style="cursor:default">
+      <td style="font-size:11px;color:var(--text3)">${t.id||"—"}</td>
+      <td style="font-size:12px">${t.date||"—"}</td>
+      <td style="font-size:11px;color:var(--text3)">${t.time||"—"}</td>
+      <td class="t-ticker"><a href="https://finance.yahoo.com/quote/${t.ticker}" target="_blank">${t.ticker}</a></td>
+      <td>${actionBadge}</td>
+      <td style="text-align:center;font-weight:600">${t.shares||0}</td>
+      <td style="font-weight:700">${fp(t.price)}</td>
+      <td>${fp(t.total)}</td>
+      <td style="color:var(--green);font-size:11px">${t.target_price ? fp(t.target_price) : "—"}</td>
+      <td style="color:var(--red);font-size:11px">${t.stop_price ? fp(t.stop_price) : "—"}</td>
+      <td class="${t.rsi<35?"rsi-os":t.rsi>70?"rsi-ob":"rsi-n"}" style="font-weight:600">${fc(t.rsi||0,1)}</td>
+      <td style="font-size:11px;color:${(t.vol_spike||0)>=1.5?"var(--green)":"var(--text3)"}">${t.vol_spike ? fc(t.vol_spike,1)+"×" : "—"}</td>
+      <td style="max-width:180px;white-space:normal">${trigHtml||"—"}</td>
+      <td style="font-weight:700;color:${pnlColor}">${t.realised_pnl!=null ? (t.realised_pnl>=0?"+":"")+"$"+fc(Math.abs(t.realised_pnl)) : "—"}</td>
+      <td style="font-weight:700;color:${pnlColor}">${t.realised_pnl_pct!=null ? (t.realised_pnl_pct>=0?"+":"")+fc(t.realised_pnl_pct)+"%" : "—"}</td>
+      <td>${outcomeBadge}</td>
+      <td>${statusBadge}</td>
+    </tr>`;
+  }).join("");
+}
+
+function buildTradeLogCharts(trades, reports) {
+  ["chart-wl","chart-weekly-pnl"].forEach(id => {
+    if(charts[id]) { charts[id].destroy(); delete charts[id]; }
+  });
+  const gc="rgba(255,255,255,.06)", tc="#5c6070";
+
+  // Win/Loss donut
+  const sells  = trades.filter(t=>t.action==="SELL");
+  const wins   = sells.filter(t=>(t.realised_pnl||0)>0).length;
+  const losses = sells.filter(t=>(t.realised_pnl||0)<0).length;
+  const open   = trades.filter(t=>t.action==="BUY"&&t.status==="OPEN").length;
+  charts["chart-wl"] = new Chart(document.getElementById("chart-wl"),{
+    type:"doughnut",
+    data:{labels:["Winners","Losers","Open"],datasets:[{
+      data:[wins,losses,open],
+      backgroundColor:["#00c805","#ff5000","#6770e7"],
+      borderColor:"#111318",borderWidth:3,hoverOffset:5
+    }]},
+    options:{cutout:"65%",plugins:{legend:{labels:{color:tc,font:{size:10},padding:10}}}}
+  });
+
+  // Weekly P&L bar
+  const wks   = [...reports].reverse().slice(-8);
+  const wLabels = wks.map(r=>r.week.replace(/.*-/,"W"));
+  const wPnl    = wks.map(r=>r.summary?.realised_pnl||0);
+  charts["chart-weekly-pnl"] = new Chart(document.getElementById("chart-weekly-pnl"),{
+    type:"bar",
+    data:{labels:wLabels,datasets:[{
+      label:"P&L",data:wPnl,
+      backgroundColor:wPnl.map(v=>v>=0?"rgba(0,200,5,.55)":"rgba(255,80,0,.55)"),
+      borderColor:wPnl.map(v=>v>=0?"#00c805":"#ff5000"),
+      borderWidth:1,borderRadius:4
+    }]},
+    options:{plugins:{legend:{display:false}},scales:{
+      x:{grid:{color:gc},ticks:{color:tc,font:{size:10}}},
+      y:{grid:{color:gc},ticks:{color:tc,font:{size:10}}}
+    }}
+  });
+}
+
+// Trade log filter buttons
+document.addEventListener("DOMContentLoaded",()=>{
+  document.querySelectorAll("#tl-filter-seg .seg-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      TL_FILTER = btn.dataset.tf;
+      document.querySelectorAll("#tl-filter-seg .seg-btn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      renderTradeTable();
+      const filtered = filteredTrades();
+      const cp = document.getElementById("tl-count");
+      if(cp) cp.textContent = filtered.length;
+    });
+  });
+});
+
 async function loadAll() {
   showSkeletons();
 
-  // Step 1: load the three JSON files (instant — from GitHub Pages CDN)
-  const [sigRes, portRes] = await Promise.allSettled([
-    fetch("signals.json?t="   + Date.now()),
-    fetch("portfolio.json?t=" + Date.now()),
+  // Step 1: load all JSON files in parallel
+  const [sigRes, portRes, tlRes] = await Promise.allSettled([
+    fetch("signals.json?t="    + Date.now()),
+    fetch("portfolio.json?t="  + Date.now()),
+    fetch("trade_log.json?t="  + Date.now()),
   ]);
 
   let sigData  = { signals: [], summary: {} };
   let portData = { holdings: [] };
+  let tlData   = { trades: [], weekly_reports: [] };
   if (sigRes.status  === "fulfilled" && sigRes.value.ok)  sigData  = await sigRes.value.json();
   if (portRes.status === "fulfilled" && portRes.value.ok) portData = await portRes.value.json();
+  if (tlRes.status   === "fulfilled" && tlRes.value.ok)   tlData   = await tlRes.value.json();
 
   ALL_SIG   = sigData.signals   || [];
   PORTFOLIO = portData.holdings || [];
+  TRADE_LOG = tlData;
 
   // Step 2: render immediately with static data so page is never blank
   bootstrapOverview(sigData);
@@ -1505,8 +1802,10 @@ function showPage(page, btn, filter){
     $("section-title").textContent={ALL:"All Signals",BUY:"Buy Signals",SELL:"Sell Signals"}[filter];
     renderOverview();
   }
-  // Every time Portfolio tab opens → fetch fresh prices for all 4 holdings
+  // Every time Portfolio tab opens → fetch fresh prices
   if(page === "portfolio") refreshPortfolioPrices();
+  // Every time Trade Log tab opens → re-render with latest data
+  if(page === "tradelog") renderTradeLog();
 }
 
 /* ── Overview controls ─────────────────────────────── */

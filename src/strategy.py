@@ -12,7 +12,7 @@ import sys
 import time
 import json
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 import pandas as pd
 import numpy as np
@@ -303,14 +303,158 @@ def get_open_positions(api: tradeapi.REST) -> dict:
 
 
 # ─────────────────────────────────────────────
+# Trade Log
+# ─────────────────────────────────────────────
+TRADE_LOG_PATH = "docs/trade_log.json"
+
+def _load_trade_log() -> dict:
+    """Load existing trade log or return a fresh one."""
+    if os.path.exists(TRADE_LOG_PATH):
+        with open(TRADE_LOG_PATH) as f:
+            return json.load(f)
+    return {
+        "version": "1.0",
+        "strategy": "10% Take-Profit | 5% Stop-Loss | High-Volume Momentum",
+        "monthly_target": 2000,
+        "trades": [],
+        "weekly_reports": [],
+    }
+
+
+def _save_trade_log(data: dict):
+    os.makedirs("docs", exist_ok=True)
+    with open(TRADE_LOG_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def _log_trade(ticker: str, signal: str, qty: int, price: float,
+               details: dict, entry_price: float | None):
+    """Append a trade entry to the trade log and update weekly report."""
+    tl   = _load_trade_log()
+    now  = datetime.utcnow()
+    side = signal  # "BUY" or "SELL"
+
+    # Generate sequential trade ID
+    existing_ids = [t.get("id", "TRD-000") for t in tl["trades"]]
+    max_num = max((int(i.split("-")[1]) for i in existing_ids if "-" in i), default=0)
+    trade_id = f"TRD-{max_num + 1:03d}"
+
+    # Calculate P&L for SELL orders
+    realised_pnl = None
+    realised_pct = None
+    outcome      = None
+    if side == "SELL" and entry_price:
+        realised_pnl = round((price - entry_price) * qty, 2)
+        realised_pct = round((price - entry_price) / entry_price * 100, 2)
+        outcome = "WIN" if realised_pnl > 0 else "LOSS"
+
+    sell_triggers = [k for k, v in details.get("sell_conditions", {}).items() if v]
+    buy_triggers  = [k for k, v in details.get("buy_conditions",  {}).items() if v]
+
+    entry = {
+        "id":               trade_id,
+        "date":             str(date.today()),
+        "time":             now.strftime("%H:%M:%S"),
+        "ticker":           ticker,
+        "action":           side,
+        "shares":           qty,
+        "price":            round(price, 4),
+        "total":            round(price * qty, 2),
+        "status":           "OPEN" if side == "BUY" else "CLOSED",
+        "triggers":         buy_triggers if side == "BUY" else sell_triggers,
+        "buy_score":        details.get("buy_score", 0),
+        "rsi":              details.get("rsi", 0),
+        "vol_spike":        details.get("vol_spike", 0),
+        "stop_price":       round(price * (1 - Config.STOP_LOSS_PCT), 2) if side == "BUY" else None,
+        "target_price":     round(price * (1 + Config.PROFIT_TARGET_PCT), 2) if side == "BUY" else None,
+        "entry_price":      entry_price if side == "SELL" else None,
+        "realised_pnl":     realised_pnl,
+        "realised_pnl_pct": realised_pct,
+        "outcome":          outcome,
+        "dry_run":          Config.DRY_RUN,
+        "notes":            ", ".join(sell_triggers) if side == "SELL" else "",
+    }
+
+    # Mark the matching open BUY as CLOSED
+    if side == "SELL":
+        for t in tl["trades"]:
+            if t["ticker"] == ticker and t["action"] == "BUY" and t["status"] == "OPEN":
+                t["status"]           = "CLOSED"
+                t["close_price"]      = round(price, 4)
+                t["close_date"]       = str(date.today())
+                t["realised_pnl"]     = realised_pnl
+                t["realised_pnl_pct"] = realised_pct
+                t["outcome"]          = outcome
+                break
+
+    tl["trades"].append(entry)
+    _update_weekly_report(tl)
+    _save_trade_log(tl)
+
+    log.info(f"📓 Trade logged: {trade_id} | {side} {qty}x {ticker} @ ${price:.2f}"
+             + (f" | P&L: ${realised_pnl:+.2f} ({realised_pct:+.1f}%)" if realised_pnl is not None else ""))
+
+
+def _update_weekly_report(tl: dict):
+    """Regenerate or upsert the current week's report."""
+    today     = date.today()
+    week_start = today - timedelta(days=today.weekday())     # Monday
+    week_end   = week_start + timedelta(days=6)              # Sunday
+    week_key   = f"{today.year}-W{today.isocalendar()[1]:02d}"
+
+    week_trades = [
+        t for t in tl["trades"]
+        if week_start.isoformat() <= t["date"] <= week_end.isoformat()
+    ]
+
+    buys    = [t for t in week_trades if t["action"] == "BUY"]
+    sells   = [t for t in week_trades if t["action"] == "SELL"]
+    winners = [t for t in sells if (t.get("realised_pnl") or 0) > 0]
+    losers  = [t for t in sells if (t.get("realised_pnl") or 0) < 0]
+    realised = sum(t.get("realised_pnl") or 0 for t in sells)
+    open_pos = [t for t in tl["trades"] if t["action"] == "BUY" and t["status"] == "OPEN"]
+    win_rate = round(len(winners) / len(sells) * 100, 1) if sells else 0
+
+    report = {
+        "week":           week_key,
+        "period":         f"{week_start} to {week_end}",
+        "generated_at":   datetime.utcnow().isoformat() + "Z",
+        "summary": {
+            "total_trades":    len(week_trades),
+            "buys":            len(buys),
+            "sells":           len(sells),
+            "winners":         len(winners),
+            "losers":          len(losers),
+            "open_positions":  len(open_pos),
+            "realised_pnl":    round(realised, 2),
+            "win_rate_pct":    win_rate,
+            "to_monthly_target": round(2000 - realised, 2),
+        },
+        "top_winner": max(sells, key=lambda t: t.get("realised_pnl") or 0, default=None) and
+                      {"ticker": max(sells, key=lambda t: t.get("realised_pnl") or 0)["ticker"],
+                       "pnl":    max(sells, key=lambda t: t.get("realised_pnl") or 0).get("realised_pnl")},
+        "notes": f"Week {week_key} auto-generated by trading agent.",
+    }
+
+    # Replace existing week report or append
+    tl["weekly_reports"] = [r for r in tl["weekly_reports"] if r["week"] != week_key]
+    tl["weekly_reports"].insert(0, report)
+    # Keep last 12 weeks only
+    tl["weekly_reports"] = tl["weekly_reports"][:12]
+
+
+# ─────────────────────────────────────────────
 # Order Execution
 # ─────────────────────────────────────────────
-def place_order(api: tradeapi.REST, ticker: str, signal: str, qty: int = None):
-    qty = qty or Config.ORDER_QTY
-    side = "buy" if signal == "BUY" else "sell"
+def place_order(api: tradeapi.REST, ticker: str, signal: str, qty: int = None,
+                details: dict = None, entry_price: float = None):
+    qty     = qty or Config.ORDER_QTY
+    side    = "buy" if signal == "BUY" else "sell"
+    details = details or {}
 
     if Config.DRY_RUN:
         log.info(f"🧪 [DRY RUN] Would {side.upper()} {qty}x {ticker}")
+        _log_trade(ticker, signal, qty, details.get("close", 0), details, entry_price)
         return
 
     try:
@@ -322,6 +466,7 @@ def place_order(api: tradeapi.REST, ticker: str, signal: str, qty: int = None):
             time_in_force="day",
         )
         log.info(f"✅ ORDER SUBMITTED | {side.upper()} {qty}x {ticker} | ID: {order.id}")
+        _log_trade(ticker, signal, qty, details.get("close", 0), details, entry_price)
     except Exception as e:
         log.error(f"❌ Order failed [{ticker}]: {e}")
 
@@ -483,7 +628,8 @@ def run_scanner(api: tradeapi.REST):
                     log.info(f"ℹ️  SELL signal for {ticker} but no open position. Skipping.")
                     continue
 
-                place_order(api, ticker, signal)
+                place_order(api, ticker, signal,
+                            details=details, entry_price=entry_price)
 
                 if signal == "SELL" and ticker in positions:
                     del positions[ticker]
