@@ -498,6 +498,7 @@
                -webkit-appearance:none;padding-right:28px;">
         <option value="us">🇺🇸 S&amp;P 500</option>
         <option value="india">🇮🇳 India NSE</option>
+        <option value="bse">🇮🇳 India BSE</option>
       </select>
       <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:9px;color:var(--text3);">▼</span>
     </div>
@@ -1047,6 +1048,72 @@
     </div>
   </div>
 </div><!-- /page-india -->
+
+<!-- ════════════════════════════════════════════════════════════
+     PAGE: BSE INDIA (Sensex 30)
+════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-bse">
+  <div class="hero" style="background:linear-gradient(135deg,#0d0a18 0%,#0a0b0d 50%,#0a100d 100%);">
+    <div class="hero-inner">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+        <span style="font-size:42px;">🇮🇳</span>
+        <div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;">Live Market Data</div>
+          <div style="font-size:14px;color:#FF9500;font-weight:700;">Bombay Stock Exchange · BSE Sensex 30</div>
+        </div>
+      </div>
+      <h1 style="font-size:28px;">India BSE — Sensex 30</h1>
+      <p>Live prices in ₹ INR · BSE listed stocks · Prices from Yahoo Finance (.BO)</p>
+      <div class="hero-stats" style="margin-top:20px">
+        <div class="hstat" style="border-top:3px solid #FF9500"><div class="hstat-glow" style="background:#FF9500"></div><div class="hstat-label">Stocks</div><div class="hstat-val" id="bse-total" style="color:#FF9500">30</div><div class="hstat-sub">Sensex 30</div></div>
+        <div class="hstat s-buy"><div class="hstat-glow"></div><div class="hstat-label">Gainers</div><div class="hstat-val" id="bse-gainers">—</div><div class="hstat-sub">Price up today</div></div>
+        <div class="hstat s-sell"><div class="hstat-glow"></div><div class="hstat-label">Losers</div><div class="hstat-val" id="bse-losers">—</div><div class="hstat-sub">Price down today</div></div>
+        <div class="hstat s-scan"><div class="hstat-glow"></div><div class="hstat-label">Updated</div><div class="hstat-val" id="bse-updated" style="font-size:15px;margin-top:4px">—</div><div class="hstat-sub" id="bse-ago">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="col-main">
+      <div class="section-head" style="margin-bottom:14px">
+        <h2>BSE Sensex 30</h2>
+        <span class="count-pill" id="bse-count">30</span>
+      </div>
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input class="search-input" id="bse-search" type="search" placeholder="Search stock…" autocomplete="off"/>
+        </div>
+        <div class="seg" id="bse-filter-seg">
+          <button class="seg-btn active" data-bf="ALL">All</button>
+          <button class="seg-btn" data-bf="GAIN" style="color:var(--green)">📈 Gainers</button>
+          <button class="seg-btn" data-bf="LOSE" style="color:var(--red)">📉 Losers</button>
+        </div>
+        <select class="sort-select" id="bse-sort" onchange="renderBSECards()">
+          <option value="chg-desc">Change % ↓</option>
+          <option value="chg-asc">Change % ↑</option>
+          <option value="price-desc">Price ↓</option>
+          <option value="alpha">A–Z</option>
+        </select>
+      </div>
+      <div class="cards-grid" id="bse-cards-grid">
+        <div class="empty" style="grid-column:1/-1"><div class="empty-icon">🇮🇳</div><p>Loading BSE prices…</p></div>
+      </div>
+      <p id="bse-row-count" style="text-align:right;color:var(--text3);font-size:11px;margin-top:8px;"></p>
+    </div>
+
+    <div class="col-side">
+      <div class="sidebar-box"><h3>Sector Breakdown</h3><canvas id="chart-bse-sector" height="200"></canvas></div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;">
+        <div style="padding:11px 14px 9px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Sensex 30 Prices</span>
+          <span id="bse-live-count" style="font-size:10px;color:var(--text3)">—</span>
+        </div>
+        <div id="bse-price-list" style="overflow-y:auto;max-height:600px;"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-bse -->
 
 <!-- ════════ MODAL ════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
@@ -2065,19 +2132,19 @@ let INDIA_LOADED   = false;
 
 /* Switch market dropdown handler */
 function switchMarket(val) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+
   if (val === "india") {
-    // Hide all other pages and show India page
-    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
     document.getElementById("page-india").classList.add("active");
-    document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
     loadIndiaMarket();
+  } else if (val === "bse") {
+    document.getElementById("page-bse").classList.add("active");
+    loadBSEMarket();
   } else {
-    // Switch back to Overview (US)
-    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    // US S&P 500
     document.getElementById("page-overview").classList.add("active");
-    document.querySelectorAll(".nav-tab").forEach(t => {
-      if(t.classList.contains("tab-overview")) t.classList.add("active");
-    });
+    document.querySelectorAll(".nav-tab.tab-overview").forEach(t => t.classList.add("active"));
   }
 }
 
@@ -2308,6 +2375,223 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
   document.getElementById("india-search")?.addEventListener("input", renderIndiaCards);
+});
+
+/* ═══════════════════════════════════════════════════════════
+   BSE MARKET — Sensex 30
+════════════════════════════════════════════════════════════ */
+let BSE_STOCKS  = [];
+let BSE_PRICES  = {};
+let BSE_FILTER  = "ALL";
+
+async function loadBSEMarket() {
+  // Load stock list + baseline
+  let baseline = {};
+  if (!BSE_STOCKS.length) {
+    try {
+      const res = await fetch("bse_stocks.json?t=" + Date.now());
+      if (res.ok) {
+        const d   = await res.json();
+        BSE_STOCKS = d.stocks || [];
+        baseline   = d.baseline_prices || {};
+      }
+    } catch(e) { console.warn("bse_stocks.json load failed:", e); }
+  }
+  if (!BSE_STOCKS.length) return;
+
+  // Pre-populate baseline so cards render instantly
+  if (Object.keys(baseline).length && !Object.keys(BSE_PRICES).length) {
+    Object.entries(baseline).forEach(([t, p]) => {
+      BSE_PRICES[t] = { price: p, change: null, change_pct: null, currency: "INR" };
+    });
+    renderBSECards();
+    renderBSEPriceList();
+  }
+
+  // Show skeleton while fetching live prices
+  const grid = document.getElementById("bse-cards-grid");
+  if(grid && !Object.keys(baseline).length) grid.innerHTML = Array.from({length:6}, ()=>`
+    <div class="stock-card card-buy skeleton" style="pointer-events:none">
+      <div style="height:14px;background:var(--bg3);border-radius:4px;width:55%;margin-bottom:10px"></div>
+      <div style="height:24px;background:var(--bg3);border-radius:4px;width:38%;margin-bottom:14px"></div>
+      <div style="height:56px;background:var(--bg3);border-radius:7px"></div>
+    </div>`).join("");
+
+  // Fetch live prices for all 30 stocks in parallel
+  const tickers = BSE_STOCKS.map(s => s.ticker);
+  const settled = await Promise.allSettled(tickers.map(t => fetchOne(t)));
+  BSE_PRICES = {};
+  settled.forEach((r, i) => {
+    if (r.status === "fulfilled" && r.value) BSE_PRICES[tickers[i]] = r.value;
+  });
+
+  const loaded  = Object.keys(BSE_PRICES).length;
+  const now     = new Date();
+  const gainers = Object.values(BSE_PRICES).filter(p => (p.change_pct||0) > 0).length;
+  const losers  = Object.values(BSE_PRICES).filter(p => (p.change_pct||0) < 0).length;
+
+  const setEl = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  setEl("bse-gainers", gainers);
+  setEl("bse-losers",  losers);
+  setEl("bse-updated", now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}));
+  setEl("bse-ago",     `${loaded}/30 prices loaded`);
+
+  renderBSECards();
+  renderBSEPriceList();
+  renderBSESectorChart();
+}
+
+function renderBSECards() {
+  const q    = (document.getElementById("bse-search")?.value || "").trim().toLowerCase();
+  const sort = document.getElementById("bse-sort")?.value || "chg-desc";
+  const grid = document.getElementById("bse-cards-grid");
+  const cnt  = document.getElementById("bse-count");
+  const rc   = document.getElementById("bse-row-count");
+  if (!grid) return;
+
+  let rows = BSE_STOCKS.map(s => ({ ...s, lp: BSE_PRICES[s.ticker] || null }))
+    .filter(r => {
+      if (q && !r.ticker.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false;
+      if (BSE_FILTER === "GAIN") return (r.lp?.change_pct || 0) > 0;
+      if (BSE_FILTER === "LOSE") return (r.lp?.change_pct || 0) < 0;
+      return true;
+    });
+
+  rows.sort((a, b) => {
+    if (sort === "chg-desc")   return (b.lp?.change_pct||0) - (a.lp?.change_pct||0);
+    if (sort === "chg-asc")    return (a.lp?.change_pct||0) - (b.lp?.change_pct||0);
+    if (sort === "price-desc") return (b.lp?.price||0) - (a.lp?.price||0);
+    if (sort === "alpha")      return a.ticker.localeCompare(b.ticker);
+    return 0;
+  });
+
+  if (cnt) cnt.textContent = rows.length;
+  if (rc)  rc.textContent  = `${rows.length} of ${BSE_STOCKS.length} stocks`;
+
+  if (!rows.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>No matching stocks</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = rows.map(r => {
+    const lp     = r.lp;
+    const price  = lp?.price ?? null;
+    const chgPct = lp?.change_pct ?? null;
+    const isUp   = chgPct != null ? chgPct >= 0 : null;
+    const isLive = !!price;
+    const cardCls = isUp === false ? "card-sell" : "card-buy";
+    const chgHtml = chgPct != null
+      ? `<span class="card-change ${isUp?"up":"dn"}">${isUp?"+":""}${chgPct.toFixed(2)}%</span>`
+      : `<span style="font-size:11px;color:var(--text3)">loading…</span>`;
+
+    return `<div class="stock-card ${cardCls}" onclick="openBSEModal('${r.ticker}')">
+      <div class="card-glow"></div>
+      <div class="card-row1">
+        <div>
+          <div class="card-ticker" style="font-size:14px">
+            ${r.ticker.replace(".BO","")}
+            ${isLive ? '<span class="live-badge">LIVE</span>' : ''}
+          </div>
+          <div class="card-name" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;background:rgba(255,153,0,.12);color:#FF9500;flex-shrink:0">${r.sector}</span>
+      </div>
+      <div class="card-price-row">
+        <span class="card-price">${price != null ? "₹"+Number(price).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}) : "—"}</span>
+        ${chgHtml}
+      </div>
+      <div class="card-metrics" style="grid-template-columns:1fr 1fr;">
+        <div class="metric"><div class="metric-label">Exchange</div><div class="metric-val" style="color:#FF9500">BSE</div></div>
+        <div class="metric"><div class="metric-label">Currency</div><div class="metric-val">₹ INR</div></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderBSEPriceList() {
+  const list  = document.getElementById("bse-price-list");
+  const lc    = document.getElementById("bse-live-count");
+  if (!list) return;
+  const loaded = Object.keys(BSE_PRICES).length;
+  if (lc) lc.textContent = `${loaded}/30 live`;
+
+  list.innerHTML = BSE_STOCKS.map(s => {
+    const lp    = BSE_PRICES[s.ticker];
+    const price = lp?.price;
+    const chg   = lp?.change_pct;
+    const isUp  = chg != null ? chg >= 0 : null;
+    return `<div class="sp-row" onclick="openBSEModal('${s.ticker}')">
+      <div class="sp-badge" style="background:${isUp===null?"var(--text3)":isUp?"var(--green)":"var(--red)"}"></div>
+      <span class="sp-ticker" style="width:60px;font-size:12px">${s.ticker.replace(".BO","")}</span>
+      <span class="sp-price">${price!=null?"₹"+Number(price).toFixed(2):"—"}</span>
+      <span class="sp-chg" style="color:${isUp===null?"var(--text3)":isUp?"var(--green)":"var(--red)"}">${chg!=null?(isUp?"+":"")+chg.toFixed(2)+"%":"—"}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderBSESectorChart() {
+  if (charts["chart-bse-sector"]) { charts["chart-bse-sector"].destroy(); delete charts["chart-bse-sector"]; }
+  const sectorMap = {};
+  BSE_STOCKS.forEach(s => { sectorMap[s.sector] = (sectorMap[s.sector]||0) + 1; });
+  const labels = Object.keys(sectorMap);
+  const colors = ["#FF9500","#00c805","#6770e7","#ff5000","#f5a623","#a855f7","#00bcd4","#e74670","#8bc34a","#58a6ff","#ffb300","#26a69a"];
+  charts["chart-bse-sector"] = new Chart(document.getElementById("chart-bse-sector"),{
+    type:"doughnut",
+    data:{labels, datasets:[{data:Object.values(sectorMap), backgroundColor:colors.slice(0,labels.length), borderColor:"#111318", borderWidth:2, hoverOffset:4}]},
+    options:{cutout:"55%", plugins:{legend:{labels:{color:"#5c6070",font:{size:9},padding:6}}}}
+  });
+}
+
+function openBSEModal(ticker) {
+  const s  = BSE_STOCKS.find(x => x.ticker === ticker);
+  const lp = BSE_PRICES[ticker];
+  if (!s) return;
+  const price  = lp?.price;
+  const chg    = lp?.change;
+  const chgPct = lp?.change_pct;
+  const isUp   = chgPct != null ? chgPct >= 0 : null;
+  const sym    = ticker.replace(".BO","");
+
+  $("m-icon").className   = "m-icon " + (isUp !== false ? "bi" : "si");
+  $("m-icon").textContent = sym.slice(0,2);
+  $("m-ticker").textContent = sym + " · " + s.name;
+  $("m-price").innerHTML  = (price ? "₹"+Number(price).toLocaleString("en-IN",{minimumFractionDigits:2}) : "—")
+    + ` <span class="live-badge">LIVE</span>`
+    + (chgPct != null ? ` <span style="color:${isUp?"var(--green)":"var(--red)"};font-size:12px;font-weight:700">${isUp?"+":""}${chgPct.toFixed(2)}% today</span>` : "");
+
+  $("m-sig-pill").innerHTML = `<span style="padding:3px 10px;border-radius:4px;background:rgba(255,153,0,.12);color:#FF9500;font-size:11px;font-weight:700">${s.sector}</span>`;
+  $("m-grid").innerHTML = [
+    ["Exchange","BSE India"],
+    ["Index",   "Sensex 30"],
+    ["Currency","₹ INR"],
+    ["Live Price", price ? "₹"+Number(price).toFixed(2) : "—"],
+    ["Change",  chg!=null ? (chg>=0?"+":"")+"₹"+Math.abs(chg).toFixed(2) : "—"],
+    ["Change %",chgPct!=null ? (chgPct>=0?"+":"")+chgPct.toFixed(2)+"%" : "—"],
+  ].map(([l,v]) => `<div class="m-metric"><div class="m-metric-label">${l}</div><div class="m-metric-val">${v}</div></div>`).join("");
+
+  $("m-trig-label").textContent = "BSE Listed";
+  $("m-trigs").innerHTML = `<span class="trig" style="background:rgba(255,153,0,.12);color:#FF9500">Sensex 30</span>
+    <span class="trig trig-buy">BSE</span>`;
+
+  $("m-actions").innerHTML = `
+    <a class="m-btn m-btn-ext" href="https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}" target="_blank">Yahoo Finance ↗</a>
+    <a class="m-btn m-btn-ext" href="https://www.bseindia.com/stock-share-price/${sym}/" target="_blank" style="background:rgba(255,153,0,.15);color:#FF9500;">BSE India ↗</a>`;
+
+  $("modal-overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+/* BSE filter buttons */
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("#bse-filter-seg .seg-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      BSE_FILTER = btn.dataset.bf;
+      document.querySelectorAll("#bse-filter-seg .seg-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderBSECards();
+    });
+  });
+  document.getElementById("bse-search")?.addEventListener("input", renderBSECards);
 });
 
 async function loadAll() {
