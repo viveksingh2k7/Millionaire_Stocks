@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="MS Stocks"/>
-  <link rel="apple-touch-icon" href="./icons/icon.svg"/>
+  <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png"/>
 
   <!-- ── Android PWA ──────────────────────────────────────────── -->
   <meta name="application-name" content="Millionaire Stocks"/>
@@ -21,7 +21,8 @@
   <meta name="description" content="S&P 500 signal scanner — live BUY/SELL alerts, portfolio P&L and trade log."/>
 
   <link rel="manifest" href="./manifest.json"/>
-  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg"/>
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png"/>
+  <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png"/>
 
   <title>Millionaire Stocks — S&P 500 Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -120,7 +121,7 @@
   /* Inner nav row sits at the bottom of the nav zone */
   nav > * { margin-bottom: 0; align-self: center; }
   .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;}
-  .nav-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--green),#00a804);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 16px var(--green-glow);}
+  .nav-logo{width:34px;height:34px;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(0,200,255,.3);background:#fff;}
   .nav-title{font-size:15px;font-weight:700;color:var(--text);}
   .nav-tagline{font-size:10px;color:var(--text3);}
   .nav-tabs{display:flex;align-items:center;gap:2px;}
@@ -431,7 +432,7 @@
 <!-- ════════ NAV ═════════════════════════════════════════════════ -->
 <nav>
   <a class="nav-brand" href="#">
-    <div class="nav-logo">📈</div>
+    <img class="nav-logo" src="./icons/icon-192.png" alt="Nelumbus" width="34" height="34" style="border-radius:10px;object-fit:contain;"/>
     <div>
       <div class="nav-title">Millionaire Stocks</div>
       <div class="nav-tagline">S&amp;P 500 Signal Scanner</div>

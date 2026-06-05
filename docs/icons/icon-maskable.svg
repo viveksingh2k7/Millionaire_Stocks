@@ -1,19 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Full-bleed background — no rounded corners so any mask shape works -->
-  <rect width="512" height="512" fill="#0a0b0d"/>
-  <!-- Content scaled within 80% safe zone (102px padding on 512px canvas) -->
-  <g transform="translate(102,102) scale(0.6)">
-    <!-- Green glow ring -->
-    <circle cx="256" cy="256" r="210" fill="none" stroke="#00c805" stroke-width="8" opacity="0.3"/>
-    <!-- Chart bars -->
-    <rect x="110" y="320" width="52" height="90"  rx="8" fill="#00c805" opacity="0.5"/>
-    <rect x="178" y="280" width="52" height="130" rx="8" fill="#00c805" opacity="0.65"/>
-    <rect x="246" y="230" width="52" height="180" rx="8" fill="#00c805" opacity="0.8"/>
-    <rect x="314" y="170" width="52" height="240" rx="8" fill="#00c805"/>
-    <!-- Trend line -->
-    <polyline points="136,310 204,265 272,215 340,160" fill="none" stroke="#00c805" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-    <polygon points="340,160 318,170 330,148" fill="#00c805"/>
-    <!-- Dollar sign -->
-    <text x="258" y="108" font-family="Arial,sans-serif" font-size="68" font-weight="900" fill="#00c805" text-anchor="middle">$</text>
+  <!-- Full-bleed white background — no rounded corners (Android adaptive icon) -->
+  <!-- Content is scaled to 80% safe zone: translate(51,51) scale(0.8) -->
+  <rect width="512" height="512" fill="#ffffff"/>
+
+  <!-- Nelumbus N — scaled + centered into 80% safe zone -->
+  <g transform="translate(51,51) scale(0.8)">
+    <!-- Navy N base -->
+    <path d="M 68 430 L 68 115 Q 68 70 113 70 L 163 70 Q 208 70 208 115 L 208 310 L 290 115 Q 310 70 355 70 L 405 70 Q 430 70 430 95 L 430 430 Q 430 460 400 460 L 355 460 Q 318 460 318 428 L 318 228 L 235 428 Q 215 460 175 460 L 100 460 Q 68 460 68 430 Z"
+          fill="#1B3170"/>
+    <!-- Left cyan leg -->
+    <path d="M 68 430 L 68 115 Q 68 70 113 70 L 163 70 Q 195 70 205 95 L 205 310 L 175 370 L 175 115 Q 175 158 133 158 L 133 430 Q 133 460 100 460 L 80 460 Q 68 455 68 430 Z"
+          fill="#00C8FF"/>
+    <!-- Right cyan leg -->
+    <path d="M 430 95 L 430 430 Q 430 460 400 460 L 355 460 Q 325 460 318 435 L 318 228 L 348 168 L 348 430 Q 348 385 395 385 L 395 95 Q 395 70 430 70 L 430 95 Z"
+          fill="#00C8FF"/>
+    <!-- White stripes -->
+    <rect x="352" y=" 82" width="74" height="13" rx="4" fill="#ffffff"/>
+    <rect x="352" y="105" width="74" height="13" rx="4" fill="#ffffff"/>
+    <rect x="352" y="128" width="74" height="13" rx="4" fill="#ffffff"/>
+    <rect x="352" y="151" width="74" height="13" rx="4" fill="#ffffff"/>
   </g>
 </svg>

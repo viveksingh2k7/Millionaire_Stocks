@@ -6,12 +6,15 @@
      • CDN assets    → network-first with cache fallback
    Bump CACHE_NAME version on every static asset change.
 ───────────────────────────────────────────────────────────── */
-const CACHE_NAME    = 'ms-stocks-v1';
+const CACHE_NAME    = 'ms-stocks-v2';   // bumped: Nelumbus icons added
 const DATA_CACHE    = 'ms-stocks-data-v1';
 
 const STATIC_ASSETS = [
   './index.html',
   './manifest.json',
+  './icons/icon-48.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
   './icons/icon.svg',
   './icons/icon-maskable.svg',
 ];
