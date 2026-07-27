@@ -1,6 +1,6 @@
 {
-  "fetched_at": "2026-07-27T18:11:13.503583+00:00",
-  "gbp_usd_rate": 1.3292,
+  "fetched_at": "2026-07-27T19:51:49.388696+00:00",
+  "gbp_usd_rate": 1.3293,
   "portfolio": [
     {
       "ticker": "NVDA",
@@ -8,9 +8,9 @@
       "name": "NVIDIA Corporation",
       "shares": 100,
       "avg_cost_usd": 218.66,
-      "price_usd": 196.505,
-      "change_usd": -6.775,
-      "change_pct": -3.3328,
+      "price_usd": 197.02,
+      "change_usd": -6.26,
+      "change_pct": -3.0795,
       "prev_close_raw": 203.28,
       "currency": "USD",
       "gbp_usd_rate": null
@@ -21,9 +21,9 @@
       "name": "Apple Inc",
       "shares": 100,
       "avg_cost_usd": 311.23,
-      "price_usd": 335.8,
-      "change_usd": 9.21,
-      "change_pct": 2.82,
+      "price_usd": 336.57,
+      "change_usd": 9.98,
+      "change_pct": 3.0558,
       "prev_close_raw": 326.59,
       "currency": "USD",
       "gbp_usd_rate": null
@@ -34,9 +34,9 @@
       "name": "Advanced Micro Devices",
       "shares": 100,
       "avg_cost_usd": 523.2,
-      "price_usd": 482.87,
-      "change_usd": -20.7,
-      "change_pct": -4.1106,
+      "price_usd": 492.84,
+      "change_usd": -10.73,
+      "change_pct": -2.1308,
       "prev_close_raw": 503.57,
       "currency": "USD",
       "gbp_usd_rate": null
@@ -47,9 +47,9 @@
       "name": "Tesla Inc",
       "shares": 100,
       "avg_cost_usd": 418.45,
-      "price_usd": 307.505,
-      "change_usd": -62.065,
-      "change_pct": -16.7938,
+      "price_usd": 308.345,
+      "change_usd": -61.225,
+      "change_pct": -16.5666,
       "prev_close_raw": 369.57,
       "currency": "USD",
       "gbp_usd_rate": null
@@ -60,9 +60,9 @@
       "name": "Amazon.com Inc",
       "shares": 100,
       "avg_cost_usd": 253.79,
-      "price_usd": 232.13,
-      "change_usd": -17.86,
-      "change_pct": -7.1443,
+      "price_usd": 231.626,
+      "change_usd": -18.364,
+      "change_pct": -7.3459,
       "prev_close_raw": 249.99,
       "currency": "USD",
       "gbp_usd_rate": null
@@ -73,9 +73,9 @@
       "name": "Meta Platforms Inc",
       "shares": 100,
       "avg_cost_usd": 627.57,
-      "price_usd": 594.73,
-      "change_usd": -51.12,
-      "change_pct": -7.9152,
+      "price_usd": 594.07,
+      "change_usd": -51.78,
+      "change_pct": -8.0173,
       "prev_close_raw": 645.85,
       "currency": "USD",
       "gbp_usd_rate": null
@@ -86,9 +86,9 @@
       "name": "Palantir Technologies",
       "shares": 100,
       "avg_cost_usd": 24.8,
-      "price_usd": 131.87,
-      "change_usd": -2.98,
-      "change_pct": -2.2099,
+      "price_usd": 131.075,
+      "change_usd": -3.775,
+      "change_pct": -2.7994,
       "prev_close_raw": 134.85,
       "currency": "USD",
       "gbp_usd_rate": null
@@ -99,12 +99,12 @@
       "name": "Wise plc (LSE)",
       "shares": 100,
       "avg_cost_usd": 9.85,
-      "price_usd": 11.8246,
+      "price_usd": 11.8255,
       "change_usd": -0.3669,
       "change_pct": -3.0092,
       "prev_close_raw": 917.2,
       "currency": "GBP",
-      "gbp_usd_rate": 1.3292
+      "gbp_usd_rate": 1.3293
     },
     {
       "ticker": "MOH",
@@ -112,182 +112,182 @@
       "name": "Molina Healthcare Inc",
       "shares": 100,
       "avg_cost_usd": 299.4,
-      "price_usd": 203.84,
-      "change_usd": -25.87,
-      "change_pct": -11.262,
+      "price_usd": 201.125,
+      "change_usd": -28.585,
+      "change_pct": -12.444,
       "prev_close_raw": 229.71,
       "currency": "USD",
       "gbp_usd_rate": null
     }
   ],
   "signal_prices": {
-    "SNOW": {
-      "price": 271.13,
-      "change": -3.21,
-      "change_pct": -1.1701,
-      "prev_close": 274.34
-    },
-    "UBER": {
-      "price": 67.485,
-      "change": -4.685,
-      "change_pct": -6.4916,
-      "prev_close": 72.17
-    },
-    "AAPL": {
-      "price": 335.8,
-      "change": 9.21,
-      "change_pct": 2.82,
-      "prev_close": 326.59
-    },
-    "PANW": {
-      "price": 320.53,
-      "change": -28.13,
-      "change_pct": -8.068,
-      "prev_close": 348.66
-    },
-    "PLTR": {
-      "price": 131.87,
-      "change": -2.98,
-      "change_pct": -2.2099,
-      "prev_close": 134.85
-    },
-    "MSFT": {
-      "price": 393.74,
-      "change": -8.55,
-      "change_pct": -2.1253,
-      "prev_close": 402.29
-    },
-    "ISRG": {
-      "price": 357.83,
-      "change": 4.66,
-      "change_pct": 1.3195,
-      "prev_close": 353.17
-    },
-    "NFLX": {
-      "price": 71.015,
-      "change": 3.415,
-      "change_pct": 5.0518,
-      "prev_close": 67.6
-    },
-    "PFE": {
-      "price": 24.805,
-      "change": 0.055,
-      "change_pct": 0.2222,
-      "prev_close": 24.75
-    },
-    "TSLA": {
-      "price": 307.505,
-      "change": -62.065,
-      "change_pct": -16.7938,
-      "prev_close": 369.57
-    },
-    "NOW": {
-      "price": 107.79,
-      "change": 3.09,
-      "change_pct": 2.9513,
-      "prev_close": 104.7
-    },
-    "META": {
-      "price": 594.73,
-      "change": -51.12,
-      "change_pct": -7.9152,
-      "prev_close": 645.85
-    },
-    "MOH": {
-      "price": 203.84,
-      "change": -25.87,
-      "change_pct": -11.262,
-      "prev_close": 229.71
-    },
-    "AVGO": {
-      "price": 380.44,
-      "change": 2.28,
-      "change_pct": 0.6029,
-      "prev_close": 378.16
-    },
-    "CVS": {
-      "price": 107.195,
-      "change": -0.415,
-      "change_pct": -0.3857,
-      "prev_close": 107.61
-    },
-    "ADBE": {
-      "price": 241.65,
-      "change": 6.91,
-      "change_pct": 2.9437,
-      "prev_close": 234.74
-    },
-    "AMZN": {
-      "price": 232.13,
-      "change": -17.86,
-      "change_pct": -7.1443,
-      "prev_close": 249.99
-    },
-    "T": {
-      "price": 24.485,
-      "change": 2.535,
-      "change_pct": 11.549,
-      "prev_close": 21.95
-    },
-    "AMAT": {
-      "price": 507.42,
-      "change": -18.28,
-      "change_pct": -3.4773,
-      "prev_close": 525.7
-    },
-    "INTU": {
-      "price": 309.18,
-      "change": 15.36,
-      "change_pct": 5.2277,
-      "prev_close": 293.82
-    },
     "GOOGL": {
-      "price": 326.08,
-      "change": -25.91,
-      "change_pct": -7.361,
+      "price": 327.065,
+      "change": -24.925,
+      "change_pct": -7.0812,
       "prev_close": 351.99
     },
+    "ISRG": {
+      "price": 356.7,
+      "change": 3.53,
+      "change_pct": 0.9995,
+      "prev_close": 353.17
+    },
+    "NOW": {
+      "price": 105.73,
+      "change": 1.03,
+      "change_pct": 0.9838,
+      "prev_close": 104.7
+    },
+    "AAPL": {
+      "price": 336.57,
+      "change": 9.98,
+      "change_pct": 3.0558,
+      "prev_close": 326.59
+    },
+    "CRM": {
+      "price": 173.525,
+      "change": -0.265,
+      "change_pct": -0.1525,
+      "prev_close": 173.79
+    },
+    "ADBE": {
+      "price": 237.82,
+      "change": 3.08,
+      "change_pct": 1.3121,
+      "prev_close": 234.74
+    },
+    "PFE": {
+      "price": 24.685,
+      "change": -0.065,
+      "change_pct": -0.2626,
+      "prev_close": 24.75
+    },
+    "META": {
+      "price": 594.07,
+      "change": -51.78,
+      "change_pct": -8.0173,
+      "prev_close": 645.85
+    },
+    "NFLX": {
+      "price": 70.525,
+      "change": 2.925,
+      "change_pct": 4.3269,
+      "prev_close": 67.6
+    },
+    "INTC": {
+      "price": 91.36,
+      "change": -5.7,
+      "change_pct": -5.8727,
+      "prev_close": 97.06
+    },
+    "PLTR": {
+      "price": 131.075,
+      "change": -3.775,
+      "change_pct": -2.7994,
+      "prev_close": 134.85
+    },
+    "AVGO": {
+      "price": 382.88,
+      "change": 4.72,
+      "change_pct": 1.2481,
+      "prev_close": 378.16
+    },
     "NKE": {
-      "price": 42.135,
-      "change": -1.335,
-      "change_pct": -3.0711,
+      "price": 41.9,
+      "change": -1.57,
+      "change_pct": -3.6117,
       "prev_close": 43.47
     },
+    "AMZN": {
+      "price": 231.626,
+      "change": -18.364,
+      "change_pct": -7.3459,
+      "prev_close": 249.99
+    },
+    "UBER": {
+      "price": 67.93,
+      "change": -4.24,
+      "change_pct": -5.875,
+      "prev_close": 72.17
+    },
+    "CVS": {
+      "price": 107.17,
+      "change": -0.44,
+      "change_pct": -0.4089,
+      "prev_close": 107.61
+    },
+    "INTU": {
+      "price": 305.28,
+      "change": 11.46,
+      "change_pct": 3.9003,
+      "prev_close": 293.82
+    },
+    "T": {
+      "price": 24.39,
+      "change": 2.44,
+      "change_pct": 11.1162,
+      "prev_close": 21.95
+    },
+    "BA": {
+      "price": 212.93,
+      "change": 3.45,
+      "change_pct": 1.6469,
+      "prev_close": 209.48
+    },
+    "AMAT": {
+      "price": 515.355,
+      "change": -10.345,
+      "change_pct": -1.9679,
+      "prev_close": 525.7
+    },
+    "PANW": {
+      "price": 318.0,
+      "change": -30.66,
+      "change_pct": -8.7937,
+      "prev_close": 348.66
+    },
+    "MSFT": {
+      "price": 389.5,
+      "change": -12.79,
+      "change_pct": -3.1793,
+      "prev_close": 402.29
+    },
+    "AMD": {
+      "price": 492.795,
+      "change": -10.775,
+      "change_pct": -2.1397,
+      "prev_close": 503.57
+    },
+    "SNOW": {
+      "price": 270.91,
+      "change": -3.43,
+      "change_pct": -1.2503,
+      "prev_close": 274.34
+    },
     "NVDA": {
-      "price": 196.52,
-      "change": -6.76,
-      "change_pct": -3.3255,
+      "price": 197.01,
+      "change": -6.27,
+      "change_pct": -3.0844,
       "prev_close": 203.28
     },
     "DIS": {
-      "price": 96.78,
-      "change": 0.37,
-      "change_pct": 0.3838,
+      "price": 96.675,
+      "change": 0.265,
+      "change_pct": 0.2749,
       "prev_close": 96.41
     },
-    "BA": {
-      "price": 212.12,
-      "change": 2.64,
-      "change_pct": 1.2603,
-      "prev_close": 209.48
+    "TSLA": {
+      "price": 308.43,
+      "change": -61.14,
+      "change_pct": -16.5436,
+      "prev_close": 369.57
     },
-    "CRM": {
-      "price": 176.44,
-      "change": 2.65,
-      "change_pct": 1.5248,
-      "prev_close": 173.79
-    },
-    "INTC": {
-      "price": 90.33,
-      "change": -6.73,
-      "change_pct": -6.9339,
-      "prev_close": 97.06
-    },
-    "AMD": {
-      "price": 483.28,
-      "change": -20.29,
-      "change_pct": -4.0292,
-      "prev_close": 503.57
+    "MOH": {
+      "price": 201.125,
+      "change": -28.585,
+      "change_pct": -12.444,
+      "prev_close": 229.71
     }
   }
 }
